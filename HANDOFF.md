@@ -1,95 +1,150 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-25** — bootstrap iniziale del progetto.
+**Stato al 2026-05-25 sera** — sessione 2: in attesa di info Airtable dal
+referente che cura la base (Cipo).
 
 ## Stato git
 
 - **Branch:** `main`
-- **Ultimo commit:** vedi `git log --oneline -n 1` (questo file è incluso
-  nel commit di bootstrap, quindi l'hash non è prevedibile a priori).
-- **Working tree:** clean dopo il commit di bootstrap.
+- **Ultimo commit:** `fc84d0a` "Bootstrap Next.js frontend with Airtable adapter"
+- **Working tree:** sarà clean dopo il commit che chiude questa sessione
+  (HANDOFF.md aggiornato + AIRTABLE_INFO.md aggiunto al repo).
+- **Remote:** nessuno ancora. Quando ci sarà Gitea/GitHub, `remote add origin`.
 
 ## Step completati
 
-- **Bootstrap** (commit di bootstrap) — scaffold completo del progetto:
-  Next.js 14 App Router + TS + Tailwind + Zod, layer Airtable, prima
-  vertical slice (Group Match Predictions) funzionante su mock data,
-  placeholder read-only per Group Order e Knockout, README e meta-file.
+- **fc84d0a — Bootstrap**: scaffold Next.js + Airtable adapter + slice #1
+  (Group Match Predictions) funzionante su mock data + meta-file
+  (CLAUDE / HANDOFF / DECISIONS / CONTEXT / ANTIPATTERNS / VOCABULARY).
+- **Sessione 2 (questo commit)**: redazione e invio della richiesta info
+  Airtable a Cipo (`AIRTABLE_INFO.md`). Raccolta parziale di info.
 
 ## Step in corso
 
-Nessuno. Lo scaffold gira (`npm run build`, `npm run typecheck`, smoke
-test SSR via curl su tutte e 6 le route → 200/307). In attesa di:
+**Connettere il frontend alla base Airtable reale.** Aspettiamo che Cipo
+compili e rimandi `AIRTABLE_INFO.md`. Non si può procedere col codice
+finché non arrivano almeno: token, table IDs, field names reali, un
+record JSON di esempio.
 
-- Schema Airtable reale (Base ID, table IDs `tblXXXX`, field names, esempio
-  di record JSON per Group Match Predictions).
+## Info Airtable già raccolte (parziali)
+
+Tieni queste a mano per la prossima sessione, non sono ancora in
+`.env.local` né in `config.ts`:
+
+| Cosa | Valore | Fonte |
+|---|---|---|
+| `AIRTABLE_BASE_ID` | `appPV77eshDFrfgII` | URL di una tabella mostrato da Roberto in sessione 2 |
+| Table ID di **una** tabella (identità ancora da confermare) | `tblqsGL0EJvfSlrgD` | Stesso URL — Roberto deve dirmi a quale tabella corrisponde |
+| Numero di Prediction Set di test già pronti | 4 | Cipo ha confermato, ne pulirà i campi così la UI vede righe vuote |
+
+## Info Airtable ancora da raccogliere (in attesa di Cipo)
+
+Tutta la sezione A–G di `AIRTABLE_INFO.md`:
+
+- [ ] Personal Access Token (su canale privato, mai in chat / mai nel repo)
+- [ ] `DEBUG_PREDICTION_SET_ID` (uno dei 4 prediction set già pronti)
+- [ ] 8 Table IDs (B compilata? abbiamo solo 1 su 8)
+- [ ] Field names reali per le 8 tabelle (solo quelli ≠ placeholder)
+- [ ] Risposte alle 3 domande critiche:
+  - tipo dei campi score (Number integer? oppure text → typecast)
+  - modello knockout: candidate fisse o computate
+  - `Prediction no.` ha davvero il `.` finale?
+- [ ] Almeno **un** record JSON di esempio (Group Match Predictions)
+- [ ] Sì/no agli helper field per server-side filtering
+- [ ] Nome esatto del campo `Played` su `Group Matches` + altri campi
+      amministrativi che il frontend deve **leggere ma non scrivere**
+      (es. `Actual Home/Away Score`, `Points Earned`, …)
+
+## Chiarimenti già acquisiti da Cipo
+
+Da memorizzare nel modello mentale:
+
+- **Creazione di User e Prediction Set** resta manuale su Airtable
+  (no signup dal frontend, no auth nell'MVP).
+- L'**Automation Airtable** genera le 72+48+32 righe figlie
+  **automaticamente** alla creazione di un Prediction Set: nessun
+  trigger esplicito richiesto.
+- Esiste un campo `Played` (checkbox, su `Group Matches`) che chi
+  cura il toto setta a true quando la partita è stata giocata. Serve
+  al calcolo punti su Airtable. **Il frontend MVP non lo legge né lo
+  scrive.**
+- Cipo ha 4 Prediction Sets di test già pronti; ne pulirà i campi
+  perché la UI mostri righe vuote da compilare.
+
+## Scelta UX in sospeso (decidere dopo l'integrazione Airtable)
+
+**Una volta che `Played === true` per una partita, l'utente deve ancora
+poter modificare la sua predizione su quella partita?**
+
+- **Opzione A (anti-bara):** riga read-only, mostra il risultato vero
+  a fianco. Richiede di leggere `Played` + `Actual Home/Away Score` da
+  `Group Matches` via lookup.
+- **Opzione B (status quo MVP):** sempre editabile. Lock solo a livello
+  schedina via `Group Predictions Locked?`.
+
+Default attuale: B (non leggiamo `Played`). Decisione Roberto da prendere
+quando avremo gli helper field e potremo valutare il costo di A.
 
 ## Step pending (in ordine)
 
-1. **Connettere Airtable reale**
-   - Sostituire i placeholder in `lib/airtable/config.ts` con i nomi/ID
-     veri (vedi sezione "Switching from mock to real Airtable" nel README).
-   - Aggiungere un Rollup field "Prediction Set ID" sulle tre tabelle di
-     pronostico per abilitare il `filterByFormula` server-side (vedi
-     `lib/airtable/groupMatchPredictions.ts` → TODO sopra `listAllRecords`).
-   - Riempire `.env.local`.
-   - Smoke test contro il base reale.
+1. **Ricevere `AIRTABLE_INFO.md` compilato da Cipo + token su canale privato**
+   - Roberto mette token + `AIRTABLE_BASE_ID` + `DEBUG_PREDICTION_SET_ID`
+     in `.env.local` sulla devbox
+   - Roberto mi gira il file compilato
 
-2. **Vertical slice #2 — Group Order Predictions**
-   - Domain type + service già pronti (`fetchGroupOrderPredictions`,
-     `updateGroupOrderPredictionsBatch`).
-   - Zod schema già pronto con `superRefine` che blocca rank duplicati
-     nello stesso gruppo.
-   - Da fare: editing UI (`GroupOrderTable.tsx` → versione client con
-     dirty tracking analogo a `MatchPredictionTable`), Server Action
-     analoga a `saveGroupMatchPredictions`, check duplicate-rank anche
-     lato client prima del save.
-   - ⚠️ Punto delicato: la UX della scelta rank (select 1-4? drag&drop?).
-     Da concordare con l'utente prima di scrivere il componente.
+2. **Update `lib/airtable/config.ts`** con i valori reali
+   - sostituisco i `VALUE` dei `*_FIELDS`
+   - popolo i `tableId` dei `TableConfig`
+   - eventuali aggiustamenti al mapper se il JSON di esempio rivela tipi
+     non previsti (es. lookup che ritorna array invece di scalare)
+   - se i campi score sono text e non Number → `typecast: true` nel batch
+   - aggiungo i campi amministrativi alla **read-only list** (mai writable)
 
-3. **Vertical slice #3 — Knockout Predictions**
-   - In attesa di chiarezza sulla struttura definitiva del knockout
-     (32 righe = 16 R32 + 8 R16 + 4 QF + 2 SF + 1 F + 1 3rd place,
-     coerente con formato FIFA 48 squadre, ma da confermare).
-   - Da fare: design del componente per scegliere il vincitore di ogni
-     tie (dropdown delle due candidate team, oppure pulsanti).
+3. **(Opzionale, se Cipo ha creato gli helper field)** switch dei 3
+   service da `listAll + filter in-memory` a `filterByFormula` su
+   `{Prediction Set ID}`. Annoto come D-007-bis in `DECISIONS.md`.
 
-4. **Hardening dopo le 3 slice**
-   - Test unitari sui mapper (vitest)
-   - Eventuale switch da fetch in-memory a `filterByFormula`
-   - Pagine 404/500 custom
-   - Considerare caching server-side per le tabelle Teams/Players (rare
-     modifiche, lookup frequenti)
+4. **Smoke test contro la base reale**
+   - 72 righe caricate, ordine corretto, nomi squadre giusti
+   - edit + save di 2-3 score, verifica scrittura su Airtable
+   - test errore: score 999 → verifico errore lato server
+
+5. **Commit "Real Airtable connection"** con: codice + HANDOFF + DECISIONS
+   aggiornati. Tolgo "Connettere Airtable reale" dai pending.
+
+6. **Decisione su UX Played**: A o B (vedi sopra). Se A → codice
+   aggiuntivo nel mapper e nel componente.
+
+7. **Vertical slice #2 — Group Order Predictions** (editing UI con
+   duplicate-rank check). Prima ti chiedo come vuoi la scelta del rank
+   (dropdown 1–4 / drag&drop / input numerico free).
+
+8. **Vertical slice #3 — Knockout Predictions** quando avremo chiarezza
+   sul modello candidate (vedi domanda critica D.4 della checklist).
 
 ## Decisioni di design non ovvie
 
-Per il dettaglio completo vedi `DECISIONS.md`. Le più importanti:
+Per il dettaglio completo vedi `DECISIONS.md`. Da quella lista, le più
+rilevanti per il lavoro di domani:
 
-- **Server Actions** per le mutation (no Route Handlers `/app/api`)
-- **`fetch` nativo** verso Airtable (no SDK `airtable` npm)
-- **In-memory filter** invece di `filterByFormula` per il primo MVP
-  (Airtable non sa filtrare per record ID di un linked field senza un
-  rollup ausiliario)
-- **Partial-failure handling**: righe ok diventano verdi, righe ko
-  restano rosse e preservano l'input dell'utente
-- **Mock data fallback** quando `AIRTABLE_API_TOKEN`/`AIRTABLE_BASE_ID`
-  non sono settate — l'app è usabile dal minuto zero senza credenziali
-- **12 gruppi × 4 squadre** nei mock (formato FIFA 48 squadre WC2026)
-- **Batch chunk size = 10** (limite hard del PATCH Airtable)
-- **Single save button**, no autosave per cella (richiesta esplicita)
+- **D-005**: nomi campo Airtable solo in `config.ts`. Quando aggiorni
+  `config.ts` con i valori reali, NON sparpagliare i nomi altrove.
+- **D-007**: in-memory filter per `predictionSetId`. Da promuovere a
+  D-007-bis se passiamo a `filterByFormula` (richiede helper field).
+- **D-010**: chunk size 10. Non toccare.
+- **D-011**: partial-failure handling. Non toccare.
 
 ## Workflow concordato con l'utente
 
 - Italiano nelle conversazioni, inglese nei commit message
-- Identità git: Roberto Novara / robnovara@gmail.com (global già a posto)
+- Identità git: Roberto Novara / robnovara@gmail.com
 - `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` nei commit
-  generati da Claude
-- Una vertical slice alla volta, end-to-end (types → service → UI →
-  page → smoke test)
-- HANDOFF aggiornato a fine step, nello stesso commit del codice
-- Nessun auth/backup/payment/admin/permissions in MVP
+- Una vertical slice alla volta, end-to-end
+- HANDOFF aggiornato a fine step / fine sessione, nello stesso commit
 - Mai esporre token Airtable al client
 - Diff preview obbligatoria per modifiche all'adapter Airtable
+- Token Airtable mai in chat, mai nel repo — solo `.env.local` sulla
+  devbox o canali privati
 
 ## Come verificare lo stato verde
 
@@ -99,28 +154,32 @@ npm run typecheck    # tsc --noEmit
 npm run build        # next build → 5/5 static pages OK
 ```
 
-Smoke test runtime:
+Smoke test runtime (su mock data, l'app gira anche senza Airtable):
 
 ```bash
 npm run dev &
 sleep 5
-curl -sI http://localhost:3000/                                    # 307 → /dashboard
-curl -sI http://localhost:3000/dashboard                           # 200
-curl -sI http://localhost:3000/prediction-set/recDebugMock000      # 200
+curl -sI http://localhost:3000/                                              # 307 → /dashboard
+curl -sI http://localhost:3000/dashboard                                     # 200
+curl -sI http://localhost:3000/prediction-set/recDebugMock000                # 200
 curl -sI http://localhost:3000/prediction-set/recDebugMock000/group-matches  # 200
 curl -sI http://localhost:3000/prediction-set/recDebugMock000/group-order    # 200
 curl -sI http://localhost:3000/prediction-set/recDebugMock000/knockout       # 200
 pkill -f "next dev"
 ```
 
-## File da leggere per riprendere il filo (in ordine)
+Tutto dovrebbe restare verde anche domani (nessun codice toccato in
+questa sessione).
+
+## File rilevanti per chi riapre la sessione
+
+In ordine di lettura suggerito:
 
 1. `~/.claude/CLAUDE.md` — istruzioni globali Roberto
 2. `./CLAUDE.md` — istruzioni specifiche del progetto
-3. `./HANDOFF.md` — questo file (stato corrente)
-4. `./DECISIONS.md` — perché le scelte architetturali
-5. `./ANTIPATTERNS.md` — cosa non fare
-6. `./VOCABULARY.md` — terminologia di dominio
-7. `./CONTEXT.md` — contesto del progetto e roadmap
-8. `./README.md` — istruzioni operative (env, struttura, run)
-9. `git log --oneline -n 5` + `git status`
+3. `./HANDOFF.md` — **questo file** (stato corrente)
+4. `./AIRTABLE_INFO.md` — la richiesta info inviata a Cipo, vedi se
+   nel frattempo è arrivata la versione compilata
+5. `./DECISIONS.md` se servono motivazioni delle scelte
+6. `./ANTIPATTERNS.md` se stai per toccare l'adapter o la save flow
+7. `git log --oneline -n 5` + `git status`
