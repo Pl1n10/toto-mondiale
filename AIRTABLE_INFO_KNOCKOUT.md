@@ -5,6 +5,7 @@ inviata a Cipo a fine sessione 4 prima di partire con lo slice #3
 (Knockout Predictions).
 
 **Mandato a Cipo il:** 2026-05-26
+**Risposto da Cipo il:** 2026-05-26 sera (vedi sezione "Risposta di Cipo")
 
 ## Testo della domanda (per Roberto, da copiare/incollare)
 
@@ -58,6 +59,133 @@ inviata a Cipo a fine sessione 4 prima di partire con lo slice #3
 > direttamente.
 >
 > Grazie!
+
+## Risposta di Cipo (sintesi + interpretazione)
+
+Cipo ha risposto a fine sessione 4. Sintesi punto per punto:
+
+| Cosa ha detto | Decodifica |
+|---|---|
+| "Pill 1·2·3·4 va benissimo" | OK su slice #2, già committato. |
+| "Il lookup `Predicted Winner` mostra tutti i Teams. Devo modificarlo in Airtable o si può forzare la scelta in front?" | Limitiamo noi la scelta nel frontend (mostriamo solo Team A vs Team B per ogni match). Cipo non tocca nulla in Airtable: il campo resta `linked → Teams` (deve poter linkare qualunque squadra). |
+| "Accoppiamenti R32 fissi" + "32 righe Knockout Predictions già pronte per ogni schedina" | Conferme attese. |
+| "Al momento nessun wiring/reference. C'è il solo lookup dalla scheda dei Teams" | Niente cascata in Airtable. Il frontend deve gestirla. |
+| "L'utente può comunque scegliere Giordania in Brasile-Italia, che è sbagliato" | Conferma il problema: senza filtro nel frontend l'utente può scegliere qualunque squadra. Ce ne occupiamo noi. |
+| **"La mia idea era che in front-end si leggono i Round of 32 e da lì si forzano le scelte dell'utente; molto simile alla 2 che hai suggerito"** | ✅ **Caso B confermato.** Cascata frontend-side. |
+| "Posso vedere se c'è un modo di lookup tra le righe" | Offerta declinata: non serve, lo gestiamo client-side (vedi twist sotto). |
+| **"I campi `Predicted Team A/B` sono lookup dalla tabella Teams"** | ⚠️ Read-only. Non scrivibili dal frontend. |
+
+### Twist rispetto al piano originale
+
+Il piano originale del Caso B prevedeva di **scrivere** `Predicted Team A/B`
+su Airtable insieme al `Predicted Winner`. Cipo conferma che quei campi
+sono **lookup**, quindi non scrivibili. Conseguenza:
+
+- La cascata vive **solo nel client state** del frontend; non la
+  persistiamo in Airtable.
+- Il PATCH contiene unicamente `Predicted Winner` per match.
+- Per R16/QF/SF/F/3°-4° i lookup `Predicted Team A/B` su Airtable
+  resteranno vuoti — non importa, il display delle squadre nel browser
+  viene dalla mappa `id → name` (come slice #1) combinata con le
+  scelte utente nei round precedenti.
+
+È **più pulito** così: meno PATCH, meno superficie di partial-failure,
+schema Airtable invariato.
+
+### Chiarimento di Roberto su quando l'utente compila (post-Cipo)
+
+Modello operativo: **compilazione one-shot prima del lock**. Appena
+finiscono i gironi, le 32 squadre che passano sono fissate; l'utente
+si siede e compila TUTTO il tabellone (R32 → R16 → QF → SF → 3°/4° →
+Finale) in un'unica sessione, prima che il primo match knockout
+inizi. Non c'è un editing "settimana per settimana".
+
+Le scelte sono lockate dopo l'inizio della fase (logica MVP futura,
+oggi non implementata).
+
+### Modello finale slice #3
+
+1. Fetch dei 32 `Knockout Predictions` per il prediction set.
+2. Fetch dei 32 `Knockout Matches` (per leggere `Team A` e `Team B`
+   reali dei R32; vuoti per i round successivi, atteso — da
+   verificare col probe nel HANDOFF).
+3. Fetch `Teams` per la mappa `id → name`.
+4. Il client costruisce il **bracket state** in memoria:
+   - per ogni match, computa le `candidates: [TeamA, TeamB]`:
+     - R32: prese da `Knockout Match.Team A` e `.Team B`
+     - R16/QF/SF/F: prese dai `Predicted Winner` dei due match a monte
+       (se compilati) — altrimenti `null` (pill disabled + tooltip
+       "complete the previous round")
+     - 3°/4° posto: vedi sotto, decisione aperta
+5. UI: 6 sezioni come per slice #2 (`01 - Round of 32` ... `06 - Final`),
+   ognuna con N partite. Per ogni partita: pill A / B che mostrano i
+   nomi delle candidate. Pill selezionata = winner.
+6. On click pill: aggiornamento client del winner. Se invalida una
+   scelta a valle, vedi decisione aperta sotto.
+7. Save: PATCH di tutti i `Predicted Winner` modificati, in batch da 10.
+
+### Decisioni UX ancora aperte (da chiudere domani con Roberto)
+
+#### Aperta 1 — Cosa fare quando una scelta upstream invalida una scelta a valle
+
+Anche se la compilazione è "one-shot", durante la stessa sessione
+l'utente può tornare indietro a un round già compilato e cambiare un
+winner. La scelta a valle che dipendeva dal vecchio winner ora punta
+a una squadra che non gioca più quel match.
+
+Esempio:
+- L'utente in R32-M1 ha detto "vince Brasile"
+- L'utente in R16-M1 ha detto "vince Brasile"
+- L'utente torna su R32-M1 e cambia: "vince Italia"
+- Ora R16-M1 ha "Italia vs <altro>". La scelta "Brasile vince R16-M1"
+  punta a una squadra che non è candidata
+
+Tre opzioni:
+
+- **(i)** Mette `null` sulle scelte a valle invalidate, le righe
+  diventano dot ambra "scelta da rifare". L'utente scrolla giù,
+  ricompila.
+- **(ii)** Resetta silenziosamente alla nuova candidata "Team A" (o
+  alla scelta più simile possibile).
+- **(iii)** Blocca il cambio upstream mostrando "prima rimuovi le
+  scelte a valle che ne dipendono".
+
+**Raccomandazione Claude:** (i). Trasparente, non distrugge
+silenziosamente, non frustra con blocchi preventivi. Coerente col
+modello one-shot: l'utente è già sulla pagina, scrolla giù, vede
+le righe ambra, le ricompila in 10 secondi.
+
+⏳ **In attesa di conferma di Roberto.**
+
+#### Aperta 2 — Candidate del match 3°/4° posto
+
+Il match 3°/4° (Phase `05 - Third Place`) si gioca tra i due
+**perdenti** delle Semifinali. Quindi le sue candidate non sono i
+winner di altri match a monte, ma le squadre **non scelte** nei due
+match Semifinale.
+
+Esempio:
+- SF-M1: Italia vs Germania. Utente sceglie "Italia vince" → Germania
+  è candidata 3°/4°
+- SF-M2: Brasile vs Argentina. Utente sceglie "Brasile vince" →
+  Argentina è candidata 3°/4°
+- Third Place: Germania vs Argentina
+
+Bracket topology deve tener traccia non solo del winner ma anche del
+"loser" implicito = `[teamA, teamB].filter(t => t !== winner)`.
+
+**Raccomandazione Claude:** implementare così come sopra. Niente di
+particolare da decidere, è la regola FIFA standard.
+
+⏳ **In attesa di conferma di Roberto.** (probabilmente solo formalità)
+
+### Cose ancora aperte con Cipo
+
+- Roberto deve rispondere a Cipo: "Non serve indagare il lookup tra
+  le righe, gestiamo tutto frontend. Grazie!" ✅ confermato da Roberto,
+  da inviare domani.
+- Eventuali precisazioni di Cipo su edge case che potrebbero emergere
+  domani dopo che gli rispondi.
 
 ## Piano in base alla risposta — pronto da eseguire
 

@@ -48,47 +48,106 @@ in `AIRTABLE_INFO_KNOCKOUT.md`.
 
 ## Slice #3 — Knockout Predictions ⏳ (entry point per la prossima sessione)
 
-**Blocker esterno:** servono due risposte da Cipo prima di scrivere
-codice. Domanda completa in **`AIRTABLE_INFO_KNOCKOUT.md`** (testo già
-mandato a Cipo a fine sessione 4):
+**Sbloccato da Cipo a fine sessione 4** (risposta intera + decodifica
+in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 
-1. In che modalità sono pensate le candidate dei round post-R32
-   (`Predicted Team A` / `Predicted Team B`)? Lookup auto, frontend
-   in cascata, o admin manuale?
-2. Qual è il **tipo Airtable** esatto dei due campi su
-   `10. Knockout Predictions` (lookup vs linked record)?
+### Modello deciso
 
-**Quattro casi pre-pianificati** in `AIRTABLE_INFO_KNOCKOUT.md` →
-sezione "Piano in base alla risposta — pronto da eseguire":
+- **Caso B** confermato da Cipo: cascata frontend-side. CON UNA
+  CORREZIONE rispetto al piano originale: `Predicted Team A/B` sono
+  **lookup read-only**, quindi NON li scriviamo. La cascata vive solo
+  nello stato client.
+- **Compilazione one-shot pre-lock** (chiarimento Roberto sessione 4):
+  l'utente compila tutto il tabellone in un'unica sessione dopo i
+  gironi, non round-per-round durante il torneo.
+- PATCH contiene solo `Predicted Winner` per ogni match modificato.
+- Per R16/QF/SF/F i campi `Predicted Team A/B` su Airtable restano
+  vuoti — il browser mostra i nomi tramite la mappa `id → name`
+  (Teams) combinata con il `Predicted Winner` dei round precedenti.
+- L'utente NON può scegliere una squadra che non è nel match: il
+  frontend mostra solo le 2 candidate pertinenti. Cipo non tocca
+  niente in Airtable.
 
-- **Caso A** (lookup automatici): solo PATCH `Predicted Winner`,
-  sblocco progressivo dei round.
-- **Caso B** (frontend gestisce cascata) — più probabile: definire
-  `lib/knockout/bracketTopology.ts`, propagazione client-side,
-  PATCH include anche `Predicted Team A/B`.
-- **Caso C** (admin manuale): identico a Caso A operativamente,
-  discutere se ha senso lanciare in queste condizioni.
-- **Caso D** (Cipo non ha deciso): default = Caso B.
+### Decisioni UX ancora da confermare con Roberto (prima cosa domani)
 
-Quando la risposta arriva, **prima cosa** da fare:
+Entrambe dettagliate in `AIRTABLE_INFO_KNOCKOUT.md` → "Decisioni UX
+ancora aperte". In sintesi:
 
-```bash
-# Verifica diretta del tipo dei campi (richiede schema.bases:read sul PAT)
-set -a && . ./.env.local && set +a
-python3 - <<'PY'
-import json, os, urllib.request
-url = f"https://api.airtable.com/v0/meta/bases/{os.environ['AIRTABLE_BASE_ID']}/tables"
-req = urllib.request.Request(url, headers={'Authorization': f"Bearer {os.environ['AIRTABLE_API_TOKEN']}"})
-data = json.loads(urllib.request.urlopen(req).read())
-for t in data.get('tables', []):
-    if 'Knockout Predictions' in t['name']:
-        for f in t['fields']:
-            if 'Predicted Team' in f['name']:
-                print(f['name'], '->', f['type'])
-PY
-```
+1. **Cascata invalidata:** se cambi un winner upstream e le scelte a
+   valle puntano a squadre che non passano più, cosa fa la UI?
+   Raccomandazione Claude: (i) `null` + dot ambra "scelta da rifare".
+2. **Match 3°/4° posto:** candidate = i due perdenti delle SF (regola
+   FIFA standard). Raccomandazione Claude: implementare così, niente
+   di particolare da decidere.
 
-Se il probe risponde 403 → chiedere a Cipo a parole, scope mancante.
+Roberto deve dare il via libera su entrambe prima che parta il codice.
+
+### Cosa fare nella prossima sessione
+
+1. **Probe di conferma (1 minuto):** verifica che effettivamente
+   `Knockout Match.Team A/B` siano popolati solo per i 16 record R32 e
+   vuoti per i 16 round successivi:
+
+   ```bash
+   set -a && . ./.env.local && set +a
+   python3 - <<'PY'
+   import json, os, urllib.request
+   url = f"https://api.airtable.com/v0/{os.environ['AIRTABLE_BASE_ID']}/tbl9IUt0116lvkbki?pageSize=100"
+   req = urllib.request.Request(url, headers={'Authorization': f"Bearer {os.environ['AIRTABLE_API_TOKEN']}"})
+   recs = json.loads(urllib.request.urlopen(req).read())['records']
+   from collections import Counter
+   c = Counter()
+   for r in recs:
+       has_a = bool(r['fields'].get('Team A'))
+       has_b = bool(r['fields'].get('Team B'))
+       phase = (r['fields'].get('Phase') or '?')
+       c[(phase, has_a and has_b)] += 1
+   for k, v in sorted(c.items()): print(k, v)
+   PY
+   ```
+
+2. **`lib/knockout/bracketTopology.ts`** (nuovo): mappa statica
+   match-number → slot-output. Per il formato 48 squadre serve
+   sapere "il vincitore di R32 match N alimenta R16 match M slot A/B".
+   Match numbers 73..104 da `KNOCKOUT_MATCH_FIELDS.matchNumber`.
+
+3. **Service & schema:**
+   - `lib/airtable/knockoutPredictions.ts`: implementare
+     `updateKnockoutPredictionsBatch` (oggi è placeholder). PATCH solo
+     `Predicted Winner`.
+   - `KNOCKOUT_PREDICTION_WRITABLE_FIELDS` già contiene solo
+     `predictedWinner`. ✓
+   - `lib/validation/knockoutPredictionSchema.ts`: estendere per il
+     batch.
+
+4. **Server action:** `app/prediction-set/[id]/knockout/actions.ts`
+   (nuovo).
+
+5. **UI:** riscrivere `components/predictions/KnockoutTable.tsx` come
+   client component. 6 sezioni (uno per round). Per ogni partita,
+   pill A / B che mostrano i nomi delle candidate (`null` → pill
+   disabled + tooltip "complete the previous round"). Pill selezionata
+   = winner. State machine identica a slice #1/#2.
+
+6. **UX cascata invalidata** (decisione presa, da implementare):
+   quando l'utente cambia il `Predicted Winner` di un R32 e il suo
+   R16 a valle puntava a una squadra che ora non passa più, la scelta
+   a valle diventa `null` con dot ambra "scelta da rifare". Non reset
+   silenzioso, non blocco preventivo.
+
+7. **Mock data:** aggiornare `buildMockKnockoutPredictions` per
+   riflettere il modello reale (con riferimenti a bracket topology).
+
+8. **Smoke test:** probe PATCH manuale → save in browser → conferma.
+
+### Cose ancora aperte con Cipo (non bloccanti)
+
+- Cipo si è offerto di "vedere se c'è un modo di lookup tra le righe"
+  in Airtable. **Risposta da dare a Cipo** (da inviare domani):
+  "Non serve, gestiamo tutto frontend. Grazie!" — così non perde
+  tempo per nulla. ✅ Roberto ha confermato il testo.
+- Eventuali precisazioni che Cipo potrebbe aggiungere dopo aver letto
+  la risposta. Non bloccanti — lo slice #3 può iniziare anche prima.
 
 ## Cleanup minori pending (non bloccanti)
 
