@@ -4,16 +4,14 @@ import { z } from 'zod';
 // mock IDs use the same prefix with arbitrary alphanumerics.
 const recordId = z.string().regex(/^rec[A-Za-z0-9]+$/, 'invalid Airtable record id');
 
-const score = z
-  .number({ invalid_type_error: 'Score must be a number' })
-  .int('Score must be an integer')
-  .min(0, 'Score cannot be negative')
-  .max(99, 'Score is unreasonably large');
+// Totocalcio outcome: 1 = home win, X = draw, 2 = away win.
+const predictedResult = z.enum(['1', 'X', '2'], {
+  errorMap: () => ({ message: 'Result must be 1, X, or 2' }),
+});
 
 export const groupMatchPredictionUpdateSchema = z.object({
   id: recordId,
-  predictedHomeScore: score,
-  predictedAwayScore: score,
+  predictedResult,
 });
 
 export const groupMatchPredictionBatchSchema = z.object({

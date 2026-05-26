@@ -4,13 +4,16 @@ import { useMemo, useState, useTransition } from 'react';
 
 import { saveGroupMatchPredictions } from '@/app/prediction-set/[id]/group-matches/actions';
 import { SaveBar, type SaveBarMessage } from '@/components/ui/SaveBar';
-import type { GroupMatchPrediction, SaveResult } from '@/types/domain';
+import type {
+  GroupMatchPrediction,
+  GroupMatchResult,
+  SaveResult,
+} from '@/types/domain';
 
 type RowStatus = 'clean' | 'dirty' | 'saving' | 'saved' | 'error';
 
 interface DraftRow {
-  home: string;
-  away: string;
+  result: GroupMatchResult | null;
   status: RowStatus;
   errorMessage?: string;
 }
@@ -20,16 +23,7 @@ interface Props {
   predictions: GroupMatchPrediction[];
 }
 
-function toDraftValue(n: number | null): string {
-  return n == null ? '' : String(n);
-}
-
-function isValidScore(s: string): boolean {
-  if (s === '') return false;
-  if (!/^\d{1,2}$/.test(s)) return false;
-  const n = Number(s);
-  return Number.isInteger(n) && n >= 0 && n <= 99;
-}
+const RESULT_OPTIONS: ReadonlyArray<GroupMatchResult> = ['1', 'X', '2'];
 
 export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
   const [serverState, setServerState] = useState(
@@ -39,11 +33,7 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
   const [drafts, setDrafts] = useState<Map<string, DraftRow>>(() => {
     const m = new Map<string, DraftRow>();
     for (const p of predictions) {
-      m.set(p.id, {
-        home: toDraftValue(p.predictedHomeScore),
-        away: toDraftValue(p.predictedAwayScore),
-        status: 'clean',
-      });
+      m.set(p.id, { result: p.predictedResult, status: 'clean' });
     }
     return m;
   });
@@ -67,21 +57,18 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
     return n;
   }, [drafts]);
 
-  function updateCell(id: string, side: 'home' | 'away', value: string) {
+  function updateCell(id: string, value: GroupMatchResult) {
     setDrafts((prev) => {
       const next = new Map(prev);
       const row = next.get(id);
       if (!row) return prev;
       const server = serverState.get(id);
       const updated: DraftRow = {
-        ...row,
-        [side]: value,
+        result: value,
         status: 'dirty',
         errorMessage: undefined,
       };
-      const serverHome = toDraftValue(server?.predictedHomeScore ?? null);
-      const serverAway = toDraftValue(server?.predictedAwayScore ?? null);
-      if (updated.home === serverHome && updated.away === serverAway) {
+      if (updated.result === (server?.predictedResult ?? null)) {
         updated.status = 'clean';
       }
       next.set(id, updated);
@@ -90,48 +77,19 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
     if (message?.kind !== 'info') setMessage(null);
   }
 
-  function collectChanges(): {
-    valid: Array<{ id: string; home: number; away: number }>;
-    invalid: string[];
-  } {
-    const valid: Array<{ id: string; home: number; away: number }> = [];
-    const invalid: string[] = [];
+  function collectChanges(): Array<{ id: string; result: GroupMatchResult }> {
+    const valid: Array<{ id: string; result: GroupMatchResult }> = [];
     for (const [id, d] of drafts) {
       if (d.status !== 'dirty' && d.status !== 'error') continue;
-      if (!isValidScore(d.home) || !isValidScore(d.away)) {
-        invalid.push(id);
-        continue;
-      }
-      valid.push({ id, home: Number(d.home), away: Number(d.away) });
+      if (d.result == null) continue;
+      valid.push({ id, result: d.result });
     }
-    return { valid, invalid };
+    return valid;
   }
 
   function onSave() {
     setMessage(null);
-    const { valid, invalid } = collectChanges();
-
-    if (invalid.length > 0) {
-      setDrafts((prev) => {
-        const next = new Map(prev);
-        for (const id of invalid) {
-          const r = next.get(id);
-          if (r) {
-            next.set(id, {
-              ...r,
-              status: 'error',
-              errorMessage: 'Both scores must be integers between 0 and 99',
-            });
-          }
-        }
-        return next;
-      });
-      setMessage({
-        kind: 'error',
-        text: `${invalid.length} row${invalid.length === 1 ? '' : 's'} have invalid scores`,
-      });
-      return;
-    }
+    const valid = collectChanges();
 
     if (valid.length === 0) {
       setMessage({ kind: 'info', text: 'No changes to save.' });
@@ -150,11 +108,7 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
     startTransition(async () => {
       const result: SaveResult<GroupMatchPrediction> = await saveGroupMatchPredictions({
         predictionSetId,
-        updates: valid.map((u) => ({
-          id: u.id,
-          predictedHomeScore: u.home,
-          predictedAwayScore: u.away,
-        })),
+        updates: valid.map((u) => ({ id: u.id, predictedResult: u.result })),
       });
 
       if (!result.ok) {
@@ -234,9 +188,7 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
               <tr className="text-left text-xs uppercase text-gray-500">
                 <th className="w-6"></th>
                 <th className="py-1 text-right pr-3">Home</th>
-                <th className="w-14 text-center"></th>
-                <th className="w-4"></th>
-                <th className="w-14 text-center"></th>
+                <th className="w-40 text-center">1 / X / 2</th>
                 <th className="py-1 pl-3">Away</th>
               </tr>
             </thead>
@@ -251,13 +203,6 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
                   saved: 'bg-emerald-500',
                   error: 'bg-red-500',
                 }[d.status];
-                const inputCls = `w-12 rounded border px-1 py-1 text-center tabular-nums ${
-                  d.status === 'error'
-                    ? 'border-red-500 bg-red-50'
-                    : d.status === 'saved'
-                    ? 'border-emerald-300'
-                    : 'border-gray-300'
-                }`;
                 return (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="py-1">
@@ -269,25 +214,35 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
                     </td>
                     <td className="py-1 pr-3 text-right">{p.homeTeamName}</td>
                     <td className="py-1 text-center">
-                      <input
-                        inputMode="numeric"
-                        maxLength={2}
-                        className={inputCls}
-                        value={d.home}
-                        onChange={(e) => updateCell(p.id, 'home', e.target.value)}
-                        aria-label={`${p.homeTeamName} predicted score`}
-                      />
-                    </td>
-                    <td className="text-center text-gray-400">–</td>
-                    <td className="py-1 text-center">
-                      <input
-                        inputMode="numeric"
-                        maxLength={2}
-                        className={inputCls}
-                        value={d.away}
-                        onChange={(e) => updateCell(p.id, 'away', e.target.value)}
-                        aria-label={`${p.awayTeamName} predicted score`}
-                      />
+                      <div
+                        role="radiogroup"
+                        aria-label={`${p.homeTeamName} vs ${p.awayTeamName} prediction`}
+                        className="inline-flex overflow-hidden rounded border border-gray-300"
+                      >
+                        {RESULT_OPTIONS.map((opt) => {
+                          const selected = d.result === opt;
+                          const base = 'w-10 px-2 py-1 text-sm font-medium transition';
+                          const cls = selected
+                            ? d.status === 'error'
+                              ? `${base} bg-red-500 text-white`
+                              : d.status === 'saved'
+                              ? `${base} bg-emerald-500 text-white`
+                              : `${base} bg-gray-800 text-white`
+                            : `${base} bg-white text-gray-700 hover:bg-gray-100`;
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              className={cls}
+                              onClick={() => updateCell(p.id, opt)}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </td>
                     <td className="py-1 pl-3">{p.awayTeamName}</td>
                   </tr>

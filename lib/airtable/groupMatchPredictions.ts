@@ -2,8 +2,10 @@ import 'server-only';
 
 import { listAllRecords, updateRecordsInBatches } from './client';
 import {
+  GROUP_FIELDS,
   GROUP_MATCH_PREDICTION_FIELDS,
   GROUP_MATCH_PREDICTION_WRITABLE_FIELDS,
+  TEAM_FIELDS,
   getAirtableEnv,
   tableRef,
 } from './config';
@@ -14,6 +16,44 @@ import type {
   GroupMatchPrediction,
   GroupMatchPredictionUpdate,
 } from '@/types/domain';
+
+const RECORD_ID = /^rec[A-Za-z0-9]+$/;
+
+/**
+ * Fetch Teams and Groups once, return id→name maps used to resolve the
+ * lookup record IDs that Group Match Predictions expose for
+ * Home/Away/Group. Cheap (~60 records total) and only called when
+ * Airtable is configured.
+ */
+async function fetchTeamAndGroupNameMaps(): Promise<{
+  teams: Map<string, string>;
+  groups: Map<string, string>;
+}> {
+  const [teamRecords, groupRecords] = await Promise.all([
+    listAllRecords(tableRef('teams'), { fields: [TEAM_FIELDS.name] }),
+    listAllRecords(tableRef('groups'), { fields: [GROUP_FIELDS.groupName] }),
+  ]);
+  const teams = new Map<string, string>();
+  for (const r of teamRecords) {
+    const name = r.fields[TEAM_FIELDS.name];
+    if (typeof name === 'string') teams.set(r.id, name);
+  }
+  const groups = new Map<string, string>();
+  for (const r of groupRecords) {
+    const name = r.fields[GROUP_FIELDS.groupName];
+    if (typeof name === 'string') groups.set(r.id, name);
+  }
+  return { teams, groups };
+}
+
+function resolveName(
+  raw: string,
+  map: Map<string, string>,
+  fallback: string,
+): string {
+  if (!RECORD_ID.test(raw)) return raw; // already a readable name (mock data, etc.)
+  return map.get(raw) ?? fallback;
+}
 
 // In-memory mock store. Lives only inside the dev server process; resets on restart.
 const mockStore = new Map<string, GroupMatchPrediction[]>();
@@ -49,10 +89,19 @@ export async function fetchGroupMatchPredictions(
   // Rollup/Formula field exposing the linked Prediction Set's record ID exists
   // on this table. Airtable cannot filter directly by a linked record's id.
   // For 72 rows × small N of prediction sets the in-memory filter below is fine.
-  const records = await listAllRecords(tableRef('groupMatchPredictions'));
+  const [records, names] = await Promise.all([
+    listAllRecords(tableRef('groupMatchPredictions')),
+    fetchTeamAndGroupNameMaps(),
+  ]);
   return records
     .map(mapGroupMatchPrediction)
     .filter((r) => r.predictionSetId === predictionSetId)
+    .map((r) => ({
+      ...r,
+      group: resolveName(r.group, names.groups, r.group),
+      homeTeamName: resolveName(r.homeTeamName, names.teams, '—'),
+      awayTeamName: resolveName(r.awayTeamName, names.teams, '—'),
+    }))
     .sort(sortKey);
 }
 
@@ -77,8 +126,7 @@ export async function updateGroupMatchPredictionsBatch(
         if (i >= 0) {
           bucket[i] = {
             ...bucket[i],
-            predictedHomeScore: u.predictedHomeScore,
-            predictedAwayScore: u.predictedAwayScore,
+            predictedResult: u.predictedResult,
           };
           updated.push(bucket[i]);
           break;
@@ -94,8 +142,7 @@ export async function updateGroupMatchPredictionsBatch(
 
   const payload = updates.map((u) => {
     const fields: Record<string, unknown> = {
-      [GROUP_MATCH_PREDICTION_FIELDS.predictedHomeScore]: u.predictedHomeScore,
-      [GROUP_MATCH_PREDICTION_FIELDS.predictedAwayScore]: u.predictedAwayScore,
+      [GROUP_MATCH_PREDICTION_FIELDS.predictedResult]: u.predictedResult,
     };
     // Defense in depth: never let a non-writable field slip into the PATCH payload.
     for (const key of Object.keys(fields)) {

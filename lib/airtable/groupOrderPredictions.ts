@@ -87,9 +87,12 @@ export async function updateGroupOrderPredictionsBatch(
     return { id: u.id, fields };
   });
 
+  // Predicted Rank is stored as Single-line text in Airtable, so we let
+  // Airtable coerce the integer payload into "1".."4" via typecast (D-016).
   const result = await updateRecordsInBatches(
     tableRef('groupOrderPredictions'),
     payload,
+    { typecast: true },
   );
   const updated = result.successRecords.map(mapGroupOrderPrediction);
   return {

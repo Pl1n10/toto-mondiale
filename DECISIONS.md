@@ -230,3 +230,152 @@ Tornare al valore del server fa tornare `clean` (transizioni reversibili).
 
 Già installato sulla devbox di Roberto (npm 11.11.0). Nessun beneficio
 chiaro nel cambiarlo per questo progetto.
+
+---
+
+## D-015 — Group Match Predictions: pronostico segno 1/X/2, non risultato esatto
+
+**Data:** 2026-05-26
+**Stato:** accettata (supersede l'ipotesi iniziale "Predicted Home/Away
+Score" della scaffolding originaria)
+
+Il JSON di esempio inviato da Cipo (`AIRTABLE_INFO (1).md`, sezione E)
+dimostra che la tabella `Group Match Predictions` **non** contiene
+`Predicted Home Score` / `Predicted Away Score`. L'unico campo
+writable è `Predicted Result`, single select con valori `"1"`, `"X"`,
+`"2"` (stile Totocalcio).
+
+**Implicazioni applicate in questo commit:**
+
+- `types/domain.GroupMatchPrediction` → `predictedResult: '1' | 'X' | '2' | null`
+  (rimossi `predictedHomeScore` / `predictedAwayScore`)
+- `lib/airtable/config.GROUP_MATCH_PREDICTION_FIELDS.predictedResult`
+  → `'Predicted Result'`. Rimossi i due campi score, aggiunti
+  campi read-only (`Real Result`, `Match Status`, `Points Earned`).
+- `WRITABLE_FIELDS` contiene solo `Predicted Result`. PATCH defense-in-depth
+  invariato.
+- `MatchPredictionTable.tsx` → 3 bottoni pillola `1 / X / 2` per riga,
+  niente più due input numerici. Stato `dirty/saved/error` invariato.
+- Mock data: `predictedResult: null` iniziale.
+
+**Fix nomi squadra applicato (opzione 2 — enrichment server-side):**
+
+`Home Team` / `Away Team` / `Group` su `Group Match Predictions` sono
+lookup che ritornano array di record ID. La risoluzione id → nome
+avviene dentro `fetchGroupMatchPredictions`:
+
+1. Fetch di `Teams` (`Team Name`) e `Groups` (`Group Name`) in
+   parallelo al fetch dei pronostici (Promise.all).
+2. Costruzione di `Map<recordId, name>` per ciascuno.
+3. Sostituzione in-place dei campi `homeTeamName` / `awayTeamName` /
+   `group` quando il valore matcha `/^rec[A-Za-z0-9]+$/`.
+
+Costo: ~60 record extra per ogni fetch (48 Teams + 12 Groups).
+Trascurabile. Cache HTTP `no-store` resta in vigore — se servirà
+caching aggressivo, futura ottimizzazione.
+
+Scartata l'**opzione 1** (chiedere a Cipo di creare i lookup
+`Home Team Name`) perché self-contained server-side ha zero round-trip
+con Cipo e funziona indipendentemente da modifiche dello schema.
+
+---
+
+## D-016 — Group Order Predictions: `Predicted Rank` text + typecast
+
+**Data:** 2026-05-26
+**Stato:** accettata
+
+Il JSON di Cipo mostra `"Predicted Rank": "2"` (stringa). In Airtable
+il campo è **single-line text**, non Number Integer.
+
+**Scelta:** il domain TS mantiene `predictedRank: number | null`
+(più type-safe per la logica 1..4), il mapper accetta sia number che
+numeric-string (`asIntegerOrNull`), il PATCH manda integer e attiva
+`typecast: true` su `updateRecordsInBatches` per far coercere Airtable
+in stringa. Zero round-trip con Cipo.
+
+**Trade-off accettato:** se domani Cipo cambia il campo a Number
+Integer non dobbiamo cambiare nulla nel codice (typecast è no-op su
+campi numerici). Se invece passa a single-select 1..4 servirà un
+piccolo cambio nel mapper. Bene così.
+
+---
+
+## D-017 — Knockout Predictions: naming Airtable allineato al modello "passa chi"
+
+**Data:** 2026-05-26
+**Stato:** accettata (supersede i placeholder iniziali di
+`KNOCKOUT_PREDICTION_FIELDS`)
+
+Dal documento compilato da Cipo (sezione D.4) emerge che il modello
+knockout è "scelta chi passa" sul tabellone, non "indovino la
+composizione". Gli accoppiamenti Round-of-32 sono fissi (admin), poi
+ogni utente sceglie quale dei due Team passa al turno successivo.
+
+**Naming allineato in `lib/airtable/config.ts`:**
+
+| Key TS interna | Airtable (prima) | Airtable (ora) |
+|---|---|---|
+| `round` | `Round` | `Phase` (lookup) |
+| `slot` | `Slot` | `Match Number` (lookup) |
+| `candidateTeam1` | `Candidate Team 1` | `Real Team A` |
+| `candidateTeam2` | `Candidate Team 2` | `Real Team B` |
+| `candidateTeam1Name` | `Candidate Team 1 Name` | `Predicted Team A` |
+| `candidateTeam2Name` | `Candidate Team 2 Name` | `Predicted Team B` |
+| `predictedWinner` | `Predicted Winner` | `Predicted Winner` (invariato) |
+| `predictedWinnerName` | `Predicted Winner Name` | (rimosso — non esiste in Airtable) |
+| (nuovo) `knockoutMatch` | — | `Knockout Match` |
+| (nuovo) `realWinner` | — | `Real Winner` |
+| (nuovo) `matchStatus` | — | `Match Status` |
+| (nuovo) `pointsEarned` | — | `Points Earned` |
+
+Aggiunta anche la tabella `9. Knockout Matches` (`tbl9IUt0116lvkbki`)
+e relativa map `KNOCKOUT_MATCH_FIELDS`. La semantica esatta del
+campo `Predicted Team A/B` (lookup verso quale source?) è da
+chiarire quando implementeremo lo slice #3.
+
+Slice #3 è ancora placeholder UI, quindi questo refactor non rompe
+nulla a livello applicazione.
+
+---
+
+## D-019 — Token PAT richiede sia `data.records:read` sia `data.records:write`
+
+**Data:** 2026-05-26
+**Stato:** osservazione operativa
+
+Smoke test runtime sessione 3: il PATCH su Airtable falliva
+sistematicamente con `403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`
+nonostante:
+
+- field name corretti
+- payload ben formato
+- base ID corretto
+- read (GET) funzionante con lo stesso token
+
+Causa: il token PAT generato da Cipo aveva solo
+`data.records:read`. Il messaggio Airtable per scope mancante è
+identico a quello per "base non condivisa" o "tabella inesistente",
+quindi il debug si è risolto con un probe manuale che ha isolato la
+PATCH come unico verbo fallente.
+
+**Documentato qui per future regressioni**: se compare 403 dal save,
+la prima ipotesi è scope token (non base ID, non field name).
+
+---
+
+## D-018 — Helper field `Prediction Set ID` come text, non formula
+
+**Data:** 2026-05-26
+**Stato:** osservata, non bloccante
+
+Cipo segnala che la formula `RECORD_ID()` su `Prediction Sets` non
+glielo lascia salvare. Ha creato `Prediction Set ID` come
+single-line text sulle 3 tabelle figlie, ma il valore è
+verosimilmente vuoto.
+
+**Conseguenza:** `filterByFormula` server-side per filtrare per
+prediction set non funziona oggi. Continuiamo con
+[[in-memory filter D-007]] (`listAll + filter`). Da indagare
+insieme a Cipo quando ottimizzeremo per più schedine: probabile
+problema di permessi del campo formula o di field type selezionato.

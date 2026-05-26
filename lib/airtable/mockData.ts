@@ -68,8 +68,7 @@ export function buildMockGroupMatchPredictions(
         group: `Group ${g.letter}`,
         homeTeamName: g.teams[h],
         awayTeamName: g.teams[a],
-        predictedHomeScore: null,
-        predictedAwayScore: null,
+        predictedResult: null,
         matchOrder: order,
       });
       order++;

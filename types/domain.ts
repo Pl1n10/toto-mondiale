@@ -34,6 +34,9 @@ export interface PredictionSet {
   knockoutPredictionsLocked?: boolean;
 }
 
+/** Totocalcio-style outcome: home win / draw / away win. */
+export type GroupMatchResult = '1' | 'X' | '2';
+
 export interface GroupMatchPrediction {
   id: RecordId;
   predictionSetId: RecordId;
@@ -41,8 +44,7 @@ export interface GroupMatchPrediction {
   group: string;
   homeTeamName: string;
   awayTeamName: string;
-  predictedHomeScore: number | null;
-  predictedAwayScore: number | null;
+  predictedResult: GroupMatchResult | null;
   matchOrder?: number;
   matchDate?: string;
 }
@@ -74,8 +76,7 @@ export interface KnockoutPrediction {
 
 export interface GroupMatchPredictionUpdate {
   id: RecordId;
-  predictedHomeScore: number;
-  predictedAwayScore: number;
+  predictedResult: GroupMatchResult;
 }
 
 export interface GroupOrderPredictionUpdate {

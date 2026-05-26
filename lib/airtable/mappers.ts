@@ -7,10 +7,16 @@ import {
 import type { AirtableRecord } from '@/types/airtable';
 import type {
   GroupMatchPrediction,
+  GroupMatchResult,
   GroupOrderPrediction,
   KnockoutPrediction,
   PredictionSet,
 } from '@/types/domain';
+
+function asGroupMatchResult(value: unknown): GroupMatchResult | null {
+  const s = typeof value === 'string' ? value : Array.isArray(value) ? value[0] : undefined;
+  return s === '1' || s === 'X' || s === '2' ? s : null;
+}
 
 // Airtable lookups frequently return either a scalar OR a single-element array
 // depending on whether they traverse a multi-linked field. These helpers
@@ -32,8 +38,10 @@ function firstNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function asNumberOrNull(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
+/** Accept both Number Integer and Single-line-text encodings (e.g. "2"). */
+function asIntegerOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string' && /^-?\d+$/.test(value)) return Number(value);
   return null;
 }
 
@@ -60,6 +68,10 @@ export function mapPredictionSet(record: AirtableRecord): PredictionSet {
 
 export function mapGroupMatchPrediction(record: AirtableRecord): GroupMatchPrediction {
   const f = record.fields;
+  // Home/Away Team and Group are lookups that return arrays of record IDs in
+  // Airtable's JSON (see sample in AIRTABLE_INFO). The mapper passes through
+  // whatever firstString resolves to: when Cipo adds lookups
+  // `Team Name (from Home Team)` etc., we'll prefer those here.
   return {
     id: record.id,
     predictionSetId: firstLinkedId(f[GROUP_MATCH_PREDICTION_FIELDS.predictionSet]) ?? '',
@@ -67,8 +79,7 @@ export function mapGroupMatchPrediction(record: AirtableRecord): GroupMatchPredi
     group: firstString(f[GROUP_MATCH_PREDICTION_FIELDS.group]) ?? '?',
     homeTeamName: firstString(f[GROUP_MATCH_PREDICTION_FIELDS.homeTeam]) ?? '—',
     awayTeamName: firstString(f[GROUP_MATCH_PREDICTION_FIELDS.awayTeam]) ?? '—',
-    predictedHomeScore: asNumberOrNull(f[GROUP_MATCH_PREDICTION_FIELDS.predictedHomeScore]),
-    predictedAwayScore: asNumberOrNull(f[GROUP_MATCH_PREDICTION_FIELDS.predictedAwayScore]),
+    predictedResult: asGroupMatchResult(f[GROUP_MATCH_PREDICTION_FIELDS.predictedResult]),
     matchOrder: firstNumber(f[GROUP_MATCH_PREDICTION_FIELDS.matchOrder]),
     matchDate: firstString(f[GROUP_MATCH_PREDICTION_FIELDS.matchDate]),
   };
@@ -85,7 +96,7 @@ export function mapGroupOrderPrediction(record: AirtableRecord): GroupOrderPredi
       firstString(f[GROUP_ORDER_PREDICTION_FIELDS.team]) ??
       '—',
     teamId: firstLinkedId(f[GROUP_ORDER_PREDICTION_FIELDS.team]),
-    predictedRank: asNumberOrNull(f[GROUP_ORDER_PREDICTION_FIELDS.predictedRank]),
+    predictedRank: asIntegerOrNull(f[GROUP_ORDER_PREDICTION_FIELDS.predictedRank]),
   };
 }
 
@@ -104,7 +115,11 @@ export function mapKnockoutPrediction(record: AirtableRecord): KnockoutPredictio
       firstString(f[KNOCKOUT_PREDICTION_FIELDS.candidateTeam2]),
     candidateTeam1Id: firstLinkedId(f[KNOCKOUT_PREDICTION_FIELDS.candidateTeam1]),
     candidateTeam2Id: firstLinkedId(f[KNOCKOUT_PREDICTION_FIELDS.candidateTeam2]),
-    predictedWinnerTeamName: firstString(f[KNOCKOUT_PREDICTION_FIELDS.predictedWinnerName]),
+    // No dedicated "Predicted Winner Name" lookup exists in Airtable today;
+    // resolving id → name requires either a new lookup on the Knockout
+    // Predictions table or an enrichment pass through the Teams table.
+    // Left undefined for now — slice #3 is still placeholder UI.
+    predictedWinnerTeamName: undefined,
     predictedWinnerTeamId: firstLinkedId(f[KNOCKOUT_PREDICTION_FIELDS.predictedWinner]),
   };
 }
