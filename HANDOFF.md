@@ -1,8 +1,8 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-26 sera** — sessione 3: schema Airtable reale
-integrato, slice #1 refactor a modello 1/X/2 completato, build verde.
-Smoke test runtime contro Airtable reale ancora da fare.
+**Stato al 2026-05-26 (tardo)** — sessione 4: slice #2 (Group Order
+Predictions) completato end-to-end contro Airtable reale. Slice #1 e #2
+verdi. Resta lo slice #3 (Knockout) e i task amministrativi.
 
 ## Stato git
 
@@ -106,11 +106,58 @@ verde. Non serve riavviare il dev server (token letto a runtime).
    chiarita con Cipo la semantica di `Predicted Team A/B` (lookup
    verso quale source?).
 
+## Slice #2 — Group Order Predictions ✅ (sessione 4)
+
+- `components/predictions/GroupOrderTable.tsx`: client component con
+  pill 1·2·3·4 per ogni squadra. Stati `clean/dirty/saving/saved/error`
+  invariati rispetto allo slice #1.
+- **Duplicate-rank guard live**: appena l'utente crea un rank doppio
+  in un girone entrambe le righe diventano rosse, il SaveBar mostra
+  un banner "N rows share a rank..." e il bottone Save è disabilitato
+  finché il conflict non è risolto. Validation duplicata anche
+  server-side via `superRefine` in `groupOrderPredictionBatchSchema`.
+- `components/ui/SaveBar.tsx`: aggiunto prop `saveDisabled` opzionale
+  per gate esterni alla state machine clean/dirty/error.
+- `app/prediction-set/[id]/group-order/actions.ts`: nuova server
+  action (pattern identico a group-matches).
+- `types/domain.GroupOrderPredictionUpdate.group`: nuovo campo, va
+  insieme all'update perché serve al refinement; non finisce nel
+  PATCH Airtable (defense-in-depth nel service).
+- **Fix non banale (D-016 revisionata)**: `typecast: true` di Airtable
+  coerce string→target, NON integer→text. PATCH con integer 1 su
+  Single-line-text → `422 Unprocessable Entity`. Soluzione: il service
+  ora converte a stringa via `String(u.predictedRank)` prima del PATCH
+  e `typecast` è stato tolto (era no-op).
+
+Smoke test save end-to-end OK: 4 record modificati su
+`recnWpdJeglgnngOc` salvati su Airtable, nessun girone con duplicati
+o missing rank residuo, tutti i 12 gironi coprono 1·2·3·4.
+
 ## Step pending (in ordine)
 
-1. **Cipo aggiunge `data.records:write` allo scope del token** (esterno).
-   Testo richiesta già preparato in chat sessione 3. Quando il token
-   ha il nuovo scope, il save in browser deve funzionare alla prima.
+1. **Setup remote git (Gitea homelab + GitHub mirror)** — Roberto ha
+   detto domani. 5 min di lavoro. Quando ci si arriva: usare identità
+   `Pl1n10`, repo privato fino al lancio del Mondiale.
+
+2. **Vertical slice #3 — Knockout Predictions**. Prima di partire:
+   chiarire con Cipo la semantica di `Predicted Team A/B` (vedi nota
+   in `config.ts KNOCKOUT_PREDICTION_FIELDS.candidateTeam1Name`).
+   Modello atteso: tabellone, utente sceglie `Predicted Winner`
+   (linked → Teams) per ciascuna delle 32 partite knockout.
+   Le candidate (Real Team A vs Real Team B) sono fissate dall'admin
+   dopo i gironi per Round-of-32; gli altri turni si formano a
+   cascata dalle scelte utente sui turni precedenti.
+
+3. **Cleanup minori** (quando vengono comodi):
+   - Rendere il dev script `-H 0.0.0.0` permanente in `package.json`
+     (Roberto lavora regolarmente via Tailscale da una macchina remota)
+   - Decisione UX "Played": se una partita ha `Match Status = Played`
+     l'utente può ancora modificare il proprio Predicted Result?
+     Default attuale: sì (editabile sempre). Da rivalutare prima del
+     torneo reale.
+   - D-018 helper field text non valorizzato: indagare con Cipo
+     perché `RECORD_ID()` non gli funziona; quando risolto possiamo
+     passare a `filterByFormula` server-side (D-007-bis).
 
 2. **Commit "Real Airtable connection + 1/X/2 refactor"** dopo OK di Roberto:
    - codice (config + types + mapper + service + Zod + UI)

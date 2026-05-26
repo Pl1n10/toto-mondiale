@@ -81,6 +81,9 @@ export interface GroupMatchPredictionUpdate {
 
 export interface GroupOrderPredictionUpdate {
   id: RecordId;
+  // `group` rides along so the Zod superRefine can enforce no duplicate
+  // ranks per group. Not part of the Airtable PATCH payload.
+  group: string;
   predictedRank: number;
 }
 

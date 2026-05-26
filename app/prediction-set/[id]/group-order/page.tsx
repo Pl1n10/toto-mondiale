@@ -36,11 +36,11 @@ export default async function GroupOrderPage({ params }: PageProps) {
         </Link>
         <h1 className="mt-2 text-2xl font-bold">Group order predictions</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Read-only preview. Editing UI ships in the next slice.
+          Pick a rank 1..4 for each team. No two teams in the same group can share a rank.
         </p>
       </header>
 
-      <GroupOrderTable predictions={predictions} />
+      <GroupOrderTable predictionSetId={params.id} predictions={predictions} />
     </main>
   );
 }

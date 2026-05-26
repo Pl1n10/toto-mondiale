@@ -280,24 +280,32 @@ con Cipo e funziona indipendentemente da modifiche dello schema.
 
 ---
 
-## D-016 — Group Order Predictions: `Predicted Rank` text + typecast
+## D-016 — Group Order Predictions: `Predicted Rank` text, PATCH come stringa
 
-**Data:** 2026-05-26
+**Data:** 2026-05-26 (revisionata in sessione 4 dopo probe empirico)
 **Stato:** accettata
 
 Il JSON di Cipo mostra `"Predicted Rank": "2"` (stringa). In Airtable
 il campo è **single-line text**, non Number Integer.
 
-**Scelta:** il domain TS mantiene `predictedRank: number | null`
-(più type-safe per la logica 1..4), il mapper accetta sia number che
-numeric-string (`asIntegerOrNull`), il PATCH manda integer e attiva
-`typecast: true` su `updateRecordsInBatches` per far coercere Airtable
-in stringa. Zero round-trip con Cipo.
+**Scoperta empirica:** `typecast: true` su Airtable coerce
+string-to-target, **NON** integer-to-text. Un PATCH con
+`{"Predicted Rank": 1, typecast: true}` su un campo single-line text
+ritorna `422 Unprocessable Entity`. Verificato sul record
+`rec0I3MhRApEzhCQQ` durante l'integrazione dello slice #2.
 
-**Trade-off accettato:** se domani Cipo cambia il campo a Number
-Integer non dobbiamo cambiare nulla nel codice (typecast è no-op su
-campi numerici). Se invece passa a single-select 1..4 servirà un
-piccolo cambio nel mapper. Bene così.
+**Soluzione applicata:**
+- domain TS mantiene `predictedRank: number | null` (più type-safe per
+  la logica 1..4)
+- mapper accetta sia number che numeric-string (`asIntegerOrNull`)
+- il **service** converte a stringa via `String(u.predictedRank)`
+  prima del PATCH
+- `typecast` rimosso dalla chiamata `updateRecordsInBatches` su
+  Group Order Predictions: non serve e nasconderebbe altri errori
+  di tipo
+
+**Se in futuro Cipo cambia il campo a Number Integer:** semplice fix
+nel service rimuovendo lo `String(...)` (un solo punto da toccare).
 
 ---
 

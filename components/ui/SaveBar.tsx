@@ -10,10 +10,18 @@ interface Props {
   isSaving: boolean;
   onSave: () => void;
   message?: SaveBarMessage | null;
+  /** Optional extra gate (e.g. block save while there are validation conflicts). */
+  saveDisabled?: boolean;
 }
 
-export function SaveBar({ dirtyCount, isSaving, onSave, message }: Props) {
-  const disabled = isSaving || dirtyCount === 0;
+export function SaveBar({
+  dirtyCount,
+  isSaving,
+  onSave,
+  message,
+  saveDisabled = false,
+}: Props) {
+  const disabled = isSaving || dirtyCount === 0 || saveDisabled;
 
   const messageColor = {
     info: 'text-gray-600',

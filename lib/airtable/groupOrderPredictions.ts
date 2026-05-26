@@ -78,8 +78,12 @@ export async function updateGroupOrderPredictionsBatch(
   }
 
   const payload = updates.map((u) => {
+    // Predicted Rank is a Single-line-text field in Airtable. typecast is
+    // string-to-target, NOT integer-to-text, so we must serialize to string
+    // ourselves (D-016 revised: empirical 422 confirmed integer+typecast
+    // does not coerce).
     const fields: Record<string, unknown> = {
-      [GROUP_ORDER_PREDICTION_FIELDS.predictedRank]: u.predictedRank,
+      [GROUP_ORDER_PREDICTION_FIELDS.predictedRank]: String(u.predictedRank),
     };
     for (const key of Object.keys(fields)) {
       if (!isWritableField(key)) delete fields[key];
@@ -87,12 +91,9 @@ export async function updateGroupOrderPredictionsBatch(
     return { id: u.id, fields };
   });
 
-  // Predicted Rank is stored as Single-line text in Airtable, so we let
-  // Airtable coerce the integer payload into "1".."4" via typecast (D-016).
   const result = await updateRecordsInBatches(
     tableRef('groupOrderPredictions'),
     payload,
-    { typecast: true },
   );
   const updated = result.successRecords.map(mapGroupOrderPrediction);
   return {
