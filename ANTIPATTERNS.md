@@ -132,3 +132,40 @@ field nudo. Se si vuole il filtro server-side, **prima** si aggiunge il
 rollup/formula field su Airtable, **poi** si modifica il service. Non
 inventarsi formule creative tipo `SEARCH('rec...', {LinkedField})` —
 falliscono in modo silenzioso quando il display field cambia.
+
+---
+
+## AP-015 — Affidarsi a `typecast: true` per convertire integer → text
+
+Scoperto empiricamente in sessione 4 (vedi D-016 revisionata): l'opzione
+`typecast` di Airtable coerce **string → target field type**, NON
+integer → text. Un PATCH con `{"Predicted Rank": 1}` + `typecast: true`
+su un campo Single-line-text ritorna `422 Unprocessable Entity`.
+
+Regola: se l'Airtable field è single-line-text e nel domain TS hai un
+number, **converti tu** a stringa via `String(...)` nel service prima
+del PATCH. `typecast` resta utile per single-select / multi-select
+(creazione lazy delle option) ma non risolve mismatch di tipo
+numerico→testuale.
+
+---
+
+## AP-016 — Lanciare `npm run build` mentre `npm run dev` è attivo
+
+Sintomo: la pagina arriva server-rendered ma client JS / CSS chunks
+ritornano 404 (`/_next/static/chunks/...`) → niente hydration → click
+inerti, look "minimal" perché manca CSS. Il production build sovrascrive
+`.next/` mentre il dev server lo sta servendo, e i chunk path
+versionati divergono.
+
+Soluzione operativa quando capita:
+
+```bash
+pkill -f "next dev"
+rm -rf .next
+npm run dev   # riparte pulito
+```
+
+Da evitare a monte: scegli **uno** dei due (dev OR build), non
+entrambi sulla stessa cartella `.next`. Se serve verificare il build,
+ferma prima il dev server.

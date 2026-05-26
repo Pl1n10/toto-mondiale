@@ -22,8 +22,9 @@ del torneo.
 ### Group Match Prediction
 La **riga di pronostico di un utente** per uno specifico Group Match.
 Una riga `Group Match Predictions` linkata a un `Prediction Set` e a un
-`Group Match`, con `Predicted Home Score` e `Predicted Away Score`.
-Quelli sono gli unici due campi che il frontend scrive.
+`Group Match`, con un solo campo writable: `Predicted Result`, single
+select con valori `1` / `X` / `2` (Totocalcio: home / draw / away).
+NON è un pronostico di risultato esatto (vedi D-015).
 
 ### Group Order Prediction
 La riga di pronostico di **un utente** per il rank finale di **una
@@ -33,15 +34,23 @@ nello stesso girone.
 
 ### Knockout Prediction
 La riga di pronostico per uno **slot** del tabellone a eliminazione
-diretta. Le 32 righe (formato 48 squadre) coprono:
-- 16 ottavi (Round of 32)
-- 8 quarti (Round of 16)
-- 4 quarti-di-finale (Quarterfinals)
-- 2 semifinali (Semifinals)
-- 1 finale 3°-4° posto (Third place)
-- 1 finale (Final)
+diretta. Le 32 righe (formato 48 squadre) coprono i 6 round, in
+Airtable identificati con queste **label esatte** del single-select
+`Phase` (vedi `KNOCKOUT_ROUND_LABELS` in `config.ts`):
 
-Campo writable: `Predicted Winner` (linked → Teams).
+| Label Airtable | Italiano | Slot |
+|---|---|---|
+| `01 - Round of 32` | Ottavi (32 squadre)   | 16 |
+| `02 - Round of 16` | Sedicesimi finalisti  | 8 |
+| `03 - Quarter Final` | Quarti              | 4 |
+| `04 - Semi Final`    | Semifinali          | 2 |
+| `05 - Third Place`   | Finale 3°-4° posto  | 1 |
+| `06 - Final`         | Finale              | 1 |
+
+Campo writable: `Predicted Winner` (linked → Teams). I round successivi
+al R32 si compongono in cascata dalle scelte utente sui round
+precedenti — **dettaglio implementativo bloccato in attesa di Cipo**,
+vedi `AIRTABLE_INFO_KNOCKOUT.md`.
 
 ### Team
 Una nazionale partecipante. Tabella Airtable `Teams`. Linkata da
@@ -79,10 +88,10 @@ le env Airtable non sono settate, l'app gira con dati finti in-memory che
 persistono nel processo del dev server. **Non è un sistema di test**.
 
 ### Writable / Read-only field
-Campo Airtable che il frontend **può** PATCHare (es. `Predicted Home
-Score`) vs quello che può solo leggere (lookup, formula, autonumber). Le
-liste `*_WRITABLE_FIELDS` in `config.ts` sono autoritarie; il service
-strippa difensivamente tutto ciò che non è in lista.
+Campo Airtable che il frontend **può** PATCHare (es. `Predicted Result`)
+vs quello che può solo leggere (lookup, formula, autonumber). Le liste
+`*_WRITABLE_FIELDS` in `config.ts` sono autoritarie; il service strippa
+difensivamente tutto ciò che non è in lista.
 
 ### Batch update / Chunking
 Una "save" può contenere N update. Il client Airtable spezza in chunk di

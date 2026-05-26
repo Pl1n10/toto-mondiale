@@ -44,7 +44,8 @@ Airtable adapter ← config (mapping campi), client (HTTP+paging+batch),
 3. `./HANDOFF.md` (stato corrente del task)
 4. `./DECISIONS.md` se servono motivazioni di scelte architetturali
 5. `./ANTIPATTERNS.md` se stai per toccare l'adapter o la save flow
-6. `git log --oneline -n 10` + `git status`
+6. `./AIRTABLE_INFO_KNOCKOUT.md` se stai per partire con lo slice #3
+7. `git log --oneline -n 10` + `git status`
 
 ## Comandi per lo stato verde
 
@@ -101,13 +102,17 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
 
 ## Slice in roadmap
 
-1. ✅ **Group Match Predictions** — vertical slice completa, gira su mock
-2. ⏳ **Group Order Predictions** — placeholder; servirà editing UI con
-   check duplicate-rank lato client + server (lo schema Zod c'è già)
-3. ⏳ **Knockout Predictions** — placeholder; aspettiamo che la struttura
-   knockout si stabilizzi prima di costruirci UI sopra
-4. ⏳ **Connessione ad Airtable reale** — sostituire placeholder in
-   `lib/airtable/config.ts`, aggiungere rollup field per server-side
-   filter, settare env vars
+1. ✅ **Group Match Predictions** — slice completa contro Airtable reale,
+   modello segno **1/X/2** (Totocalcio, vedi D-015). Niente score esatto.
+2. ✅ **Group Order Predictions** — slice completa contro Airtable reale,
+   pill 1·2·3·4 con duplicate-rank guard live (client + Zod superRefine).
+3. ⏳ **Knockout Predictions** — UI placeholder. **Blocked**: serve
+   risposta di Cipo sulla semantica di `Predicted Team A/B`
+   (vedi `AIRTABLE_INFO_KNOCKOUT.md`).
+4. ✅ **Connessione ad Airtable reale** — base reale `appPV77eshDFrfgII`
+   integrata: tutti i Table IDs in `config.ts`, enrichment server-side
+   per i nomi Team/Group, save end-to-end verde su slice #1 e #2.
+   PAT deve avere scopes `data.records:read` + `data.records:write`
+   (D-019).
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.
