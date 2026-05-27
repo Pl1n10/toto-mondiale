@@ -387,3 +387,100 @@ prediction set non funziona oggi. Continuiamo con
 [[in-memory filter D-007]] (`listAll + filter`). Da indagare
 insieme a Cipo quando ottimizzeremo per più schedine: probabile
 problema di permessi del campo formula o di field type selezionato.
+
+---
+
+## D-020 — Bracket topology derivata dai Slot Labels, non hardcodata
+
+**Data:** 2026-05-27
+**Stato:** accettata
+
+Il piano iniziale per slice #3 prevedeva una mappa statica
+`matchNumber → { slotA, slotB }` in `lib/knockout/bracketTopology.ts`,
+scritta a mano per il formato FIFA 48 squadre (es. "vincitore di m74
+alimenta slot A di m89").
+
+Il probe Airtable di sessione 5 ha rivelato che ogni record di
+`9. Knockout Matches` espone già due campi text **`Slot A Label`** e
+**`Slot B Label`** che descrivono la sorgente di ogni slot:
+
+- R32 → label descrittiva ("Winner Group E", "Runner-up Group B",
+  "Best 3rd A/B/C/D/F", ...)
+- R16 / QF / SF / Final → `Winner Match <N>` per ogni slot
+- Third Place match → `Loser Match <N>` per entrambi gli slot
+
+Il parser in `bracketTopology.ts` legge i label nel formato regex
+`^(Winner|Loser) Match (\d+)$` e produce la topology al boot del
+componente (`useMemo`). Per i R32 i candidate vengono direttamente da
+`Knockout Match.Team A/B`; per i round successivi da
+`resolveAllCandidates(topology, predictedWinners)`.
+
+**Vantaggi rispetto alla mappa hardcodata:**
+
+1. **Single source of truth.** Se Cipo cambia un accoppiamento in
+   Airtable, il frontend si adatta automaticamente — niente deploy.
+2. **Robusto alla schema drift.** Il parser fa throw se incontra un
+   label che non matcha il regex (es. Cipo per sbaglio scrive
+   "winner match 74" minuscolo). Errore precoce ed esplicito invece
+   di cascata silenziosamente rotta.
+3. **Niente duplicazione.** L'unica fonte è l'Airtable; il TS non
+   deve restare in sync con un foglio di carta.
+4. **Caso 3°/4° posto è gratis.** La regola FIFA "candidate = i
+   loser delle 2 SF" è codificata direttamente nel Slot Label
+   (`Loser Match 101` / `Loser Match 102`). Il resolver gestisce
+   `outcome: 'loser'` senza casi speciali.
+
+**Trade-off accettato:** runtime di parse a ogni boot client
+(banale — 32 record). Se Airtable cambierà drasticamente formato di
+label, basta toccare il regex in `bracketTopology.ts`.
+
+---
+
+## D-021 — Knockout UX: cascata invalidata + save check completezza
+
+**Data:** 2026-05-27
+**Stato:** accettata (confermata da Roberto in sessione 5)
+
+Tre decisioni UX prese all'avvio di slice #3, tutte implementate in
+`components/predictions/KnockoutTable.tsx`.
+
+**1. Cascata invalidata → `null` + dot ambra "scelta da rifare".**
+
+Quando l'utente cambia un winner upstream e una scelta a valle non è
+più tra le candidate (= squadra che non gioca più quel match),
+`reconcileCascade` azzera quella scelta a valle e marca la riga con
+dot ambra (tooltip "Scelta da rifare (upstream cambiato)"). Iterativo:
+si propaga finché la cascata stabilizza.
+
+Alternative scartate:
+- **Reset silenzioso al nuovo Team A/B**: distrugge l'input utente
+  senza segnalarlo, peggior UX possibile.
+- **Blocco preventivo del click upstream** finché l'utente non risolve
+  i downstream: rompe il modello one-shot.
+
+**2. Match 3°/4° → candidate = i due perdenti delle SF.**
+
+Regola FIFA standard. Implementata via `outcome: 'loser'` nella
+bracket topology (D-020): nessun caso speciale nel componente, è già
+nei dati Airtable.
+
+**3. Save check di completezza → banner + dot ambra "scelta mancante".**
+
+Al click di Save, se ci sono row senza `Predicted Winner`, niente
+PATCH. Il `SaveBar` mostra:
+
+> Attenzione!!! Mancano delle squadre; prego ricontrollare il tabellone
+> e inserire le mancanti. Grazie. (Mancano N scelte su M.)
+
+Ogni row vuota riceve dot ambra "scelta mancante". Stesso colore
+visivo della cascata invalidata: in entrambi i casi la row richiede
+attenzione dell'utente, due semantiche distinte sul tooltip.
+
+Il "totale" (`M`) è dinamico: numero di prediction row effettivamente
+fetchate da Airtable, non un costante 32. Così se la Automation di
+Cipo genera meno righe per un prediction set, l'UI non si soft-locca.
+
+**Check solo client-side** (per ora): la server action valida ID e
+team ID validi (Zod) ma non rifiuta payload incompleti. La completezza
+è un controllo UX coerente col modello one-shot pre-lock; quando
+implementeremo il vero lock saliamo a defense-in-depth server-side.

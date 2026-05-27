@@ -73,9 +73,14 @@ lib/airtable/
   mappers.ts                    ← raw AirtableRecord  →  domain object
   mockData.ts                   ← in-memory fallback when env not set
   predictionSets.ts             ← fetchPredictionSet
-  groupMatchPredictions.ts      ← fetch + batch update (vertical slice #1)
-  groupOrderPredictions.ts      ← fetch + batch update (skeleton)
-  knockoutPredictions.ts        ← fetch + batch update (skeleton)
+  teams.ts                      ← fetchTeamsNameMap (id → name lookup)
+  groupMatchPredictions.ts      ← fetch + batch update (slice #1)
+  groupOrderPredictions.ts      ← fetch + batch update (slice #2)
+  knockoutMatches.ts            ← fetchKnockoutMatches (read-only fixtures)
+  knockoutPredictions.ts        ← fetch + batch update (slice #3)
+
+lib/knockout/
+  bracketTopology.ts            ← parser of Slot A/B Labels + cascade resolver
 ```
 
 The client splits updates into chunks of 10 (Airtable PATCH limit) and reports
@@ -88,8 +93,8 @@ app/                            ← App Router pages + server actions
   dashboard/page.tsx
   prediction-set/[id]/page.tsx
   prediction-set/[id]/group-matches/{page.tsx, actions.ts}
-  prediction-set/[id]/group-order/page.tsx        (read-only placeholder)
-  prediction-set/[id]/knockout/page.tsx           (read-only placeholder)
+  prediction-set/[id]/group-order/{page.tsx, actions.ts}
+  prediction-set/[id]/knockout/{page.tsx, actions.ts}
 
 components/
   ui/{LoadingState, ErrorState, SaveBar}.tsx
@@ -97,32 +102,63 @@ components/
 
 lib/
   airtable/...                  ← service layer (see above)
+  knockout/bracketTopology.ts   ← slice-#3 cascade logic
   validation/*.ts               ← Zod schemas for each batch payload
 
 types/
-  domain.ts                     ← User, PredictionSet, *Prediction, *Update, BatchUpdateResult
+  domain.ts                     ← User, PredictionSet, *Prediction, *Update,
+                                    KnockoutMatch, BatchUpdateResult
   airtable.ts                   ← raw API typings (internal to /lib/airtable)
 ```
 
 UI components consume **normalised domain objects only**. They never see raw
 Airtable field names.
 
-## Vertical slice that works today
+## Vertical slices that work today
 
-`/prediction-set/[id]/group-matches`:
+Three slices, all live against the real Airtable base:
+
+### `/prediction-set/[id]/group-matches` (slice #1)
 
 1. Fetches all Group Match Predictions linked to the given Prediction Set.
-2. Groups them by `group` (Group A, Group B, …).
-3. Renders an editable compact table: home team, score, score, away team.
-4. Tracks per-row state: clean / dirty / saving / saved / error
-   (small coloured dot in the leftmost column).
-5. Bottom save bar shows `N rows modified` + a single `Save predictions`
-   button. No autosave.
-6. On save: validates 0–99 integer scores client-side, then sends only dirty
-   rows to a server action. Server action re-validates with Zod, calls the
-   Airtable batch update, and revalidates the page.
-7. Partial failures are surfaced per-row (failed rows stay red and keep the
-   user's input, successful rows turn green).
+2. Resolves team / group names server-side via parallel fetches.
+3. Groups rows by `group` (Group A..L) and renders a compact pill picker
+   for `1 / X / 2` (Totocalcio style, no exact-score editing — see
+   DECISIONS D-015).
+4. Tracks per-row state: clean / dirty / saving / saved / error.
+5. Batch save with partial-failure handling.
+
+### `/prediction-set/[id]/group-order` (slice #2)
+
+1. Fetches the 48 Group Order Predictions for the set (12 groups × 4
+   teams).
+2. Renders pill picker 1·2·3·4 per team.
+3. **Live duplicate-rank guard**: any conflict inside the same group
+   instantly turns both rows red, the SaveBar shows an explanatory
+   banner, and Save is disabled until the conflict is resolved. Same
+   rule is enforced server-side via Zod `superRefine`.
+
+### `/prediction-set/[id]/knockout` (slice #3)
+
+1. Fetches the 32 Knockout Predictions, the 32 Knockout Matches
+   (fixtures), and the Teams id→name map in parallel.
+2. Builds the **bracket topology** at runtime from the
+   `Slot A Label` / `Slot B Label` columns on Knockout Matches
+   (no hardcoded mapping — see DECISIONS D-020).
+3. For R32 the pill candidates come from `Knockout Match.Team A/B`;
+   for R16+ they are computed client-side from the user's upstream
+   `Predicted Winner` picks (cascade). The Third Place match
+   automatically gets the SF losers as candidates.
+4. Changing an upstream winner triggers `reconcileCascade`: every
+   downstream row whose winner is no longer a candidate is reset to
+   `null` and flagged with an amber "scelta da rifare" dot.
+5. **Save completeness check**: clicking Save on an incomplete
+   bracket shows a red banner in Italian and marks the empty rows
+   with an amber "scelta mancante" dot — no PATCH is sent.
+6. PATCH payload contains only `Predicted Winner` for the dirty rows
+   (`Predicted Team A/B` are Airtable lookups, never written —
+   see ANTIPATTERNS AP-018).
+7. Per-row state + partial-failure handling identical to slices #1/#2.
 
 ## Switching from mock to real Airtable
 
@@ -157,14 +193,12 @@ with a `filterByFormula` query.
 - Production hardening (rate limiting, CSP, etc.)
 - Migration away from Airtable
 - Creation of prediction rows (Airtable Automations already generate them)
-- Group Order editing UI (skeleton present; vertical slice #2)
-- Knockout editing UI (skeleton present; vertical slice #3)
+- Lock & deadline (disable editing after phase start)
 
 ## TODOs marked in the code
 
 Look for `TODO(roberto)` in:
 
-- `lib/airtable/config.ts` — confirm table/field names against the live base
 - `lib/airtable/groupMatchPredictions.ts` — swap in-memory filter for
   `filterByFormula` once a rollup/formula field is available
 - `.env.example` — fill in real values

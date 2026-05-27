@@ -4,8 +4,14 @@ Followup della raccolta info `AIRTABLE_INFO.md` (sessione 2-3). Domanda
 inviata a Cipo a fine sessione 4 prima di partire con lo slice #3
 (Knockout Predictions).
 
+**Stato:** ✅ slice #3 implementata e save end-to-end verde contro
+Airtable reale (sessione 5, 2026-05-27). Questo file è ora storico /
+riferimento: serve a ricordare il razionale delle scelte fatte, non
+contiene più cose pendenti che bloccano il lavoro.
+
 **Mandato a Cipo il:** 2026-05-26
 **Risposto da Cipo il:** 2026-05-26 sera (vedi sezione "Risposta di Cipo")
+**Implementato:** sessione 5, 2026-05-27 (vedi commit `769065f`)
 
 ## Testo della domanda (per Roberto, da copiare/incollare)
 
@@ -220,12 +226,45 @@ Coerente: in entrambi i casi il match richiede attenzione dell'utente.
 ### Cose ancora aperte con Cipo
 
 - Roberto deve rispondere a Cipo: "Non serve indagare il lookup tra
-  le righe, gestiamo tutto frontend. Grazie!" ✅ confermato da Roberto,
-  da inviare domani.
-- Eventuali precisazioni di Cipo su edge case che potrebbero emergere
-  domani dopo che gli rispondi.
+  le righe, gestiamo tutto frontend. Grazie!" ✅ confermato da Roberto.
+- Cipo invitato a provare l'app dal server dev di Roberto via
+  Tailscale (sessione 5).
+- ✅ **Nessuna modifica schema lato Airtable richiesta a Cipo per
+  slice #3.** L'app gira con i campi esistenti.
 
-## Piano in base alla risposta — pronto da eseguire
+## Implementazione effettiva (sessione 5, sintesi)
+
+**Scoperta inattesa durante il probe**: la tabella `Knockout Matches`
+espone già la bracket topology nei campi `Slot A Label` / `Slot B Label`.
+Per i round successivi a R32 hanno il formato
+`^(Winner|Loser) Match (\d+)$`. Per il Third Place sono "Loser Match 101"
+e "Loser Match 102" — la regola FIFA è già nel data model.
+
+Conseguenze:
+
+1. **Bracket topology non hardcodata**: il parser in
+   `lib/knockout/bracketTopology.ts` legge i Slot Labels al boot del
+   componente. Vedi DECISIONS [[D-020]].
+2. **Niente PATCH su `Predicted Team A/B`**: sono lookup
+   (anche se Cipo non l'aveva detto esplicitamente), si gestisce
+   tutto nello stato client. Vedi ANTIPATTERNS [[AP-018]].
+3. **`Team A/B` dei round non-R32 in Airtable contengono dummy data
+   lasciati da Cipo**: vanno **ignorati** dal frontend (usiamo la
+   cascata). Anche questo in [[AP-018]].
+
+**Decisioni UX confermate da Roberto** ([[D-021]]):
+- Cascata invalidata → `null` + dot ambra "scelta da rifare"
+- Match 3°/4° → candidate = i loser delle SF (gratis con [[D-020]])
+- Save check di completezza → banner italiano + dot ambra "scelta
+  mancante" sui match senza winner
+
+**Smoke test browser (sessione 5):**
+- Tabellone incompleto → banner "Mancano 5 scelte su 32" ✓
+- Tabellone completo → "Saved 14 predictions" + "No changes" ✓
+- PATCH reale su Airtable verificato per il prediction set
+  `recnWpdJeglgnngOc`.
+
+## Piano in base alla risposta — pronto da eseguire (storico)
 
 ### Caso A — Cipo risponde "modalità 1 (lookup intelligente)"
 
@@ -316,25 +355,8 @@ scalabile e che ci richiede meno round-trip. Aggiornare DECISIONS.md
 con un'entry "D-020 — Frontend gestisce la cascata knockout"
 spiegando perché.
 
-## Verifiche tecniche al ritorno della risposta
+## Verifiche tecniche al ritorno della risposta (storico)
 
-Prima di scrivere codice, fare un probe diretto sull'Airtable per
-confermare il tipo dei campi `Predicted Team A` / `Predicted Team B`:
-
-```bash
-set -a && . ./.env.local && set +a
-python3 - <<'PY'
-import json, os, urllib.request
-url = f"https://api.airtable.com/v0/meta/bases/{os.environ['AIRTABLE_BASE_ID']}/tables"
-req = urllib.request.Request(url, headers={'Authorization': f"Bearer {os.environ['AIRTABLE_API_TOKEN']}"})
-data = json.loads(urllib.request.urlopen(req).read())
-for t in data.get('tables', []):
-    if 'Knockout Predictions' in t['name']:
-        for f in t['fields']:
-            if 'Predicted Team' in f['name']:
-                print(f['name'], '->', f['type'])
-PY
-```
-
-(richiede scope `schema.bases:read` sul token PAT; se manca il probe
-risponde 403 e si chiede a Cipo a parole)
+✅ Eseguita in sessione 5. Lezione operativa: anche per i probe ad-hoc
+ricordarsi della **paginazione Airtable** ([[AP-017]]) — il primo probe
+faceva vedere 25/32 record perché mancava il loop su `offset`.

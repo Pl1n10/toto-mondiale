@@ -68,13 +68,17 @@ spesso da mobile.
 | Fase | Output |
 |---|---|
 | **0. Bootstrap** | Scaffold + slice #1 (Group Match) su mock ✅ |
-| **1. Connessione Airtable reale** | Schema reale nel config, env vars, smoke test contro base reale |
-| **2. Slice #2 — Group Order** | Editing UI con check duplicate-rank client+server |
-| **3. Slice #3 — Knockout** | Editing UI quando la struttura è stabile |
+| **1. Connessione Airtable reale** | Schema reale nel config, env vars, smoke test contro base reale ✅ |
+| **2. Slice #2 — Group Order** | Editing UI con check duplicate-rank client+server ✅ |
+| **3. Slice #3 — Knockout** | Editing UI con cascata client-side, dot ambra invalidate, save check completezza ✅ |
 | **4. Auth** | Login utente, scoping del Prediction Set per user |
 | **5. Lock & deadline** | Disable editing dopo l'inizio della fase del torneo |
 | **6. Deploy** | VPS, Cloudflare Tunnel, secrets in env del VPS |
 | **7. Backup + admin panel** | Solo se richiesto |
+
+**MVP delle 3 slice è chiuso** (fine sessione 5, 2026-05-27). Le fasi
+4..7 sono prossimi step di prodotto, non ancora pianificati nel
+dettaglio.
 
 ## Interlocutori
 

@@ -12,14 +12,13 @@ client-side con dot ambra e banner di errore in italiano.
 
 - **Branch:** `main`
 - **Ultimi commit:**
+  - `769065f` Add Knockout slice with cascade + save completeness check (slice #3)
   - `e98ab33` Docs: confirm knockout UX decisions, add save completeness check
   - `c2ace04` Docs: capture Cipo's knockout reply + Roberto's one-shot clarification
   - `bf0fbda` Docs sync before slice #3: lessons learned + Cipo knockout question
   - `c4330f8` Add Group Order editing UI with duplicate-rank guard (slice #2)
-  - `6238d81` Connect to real Airtable backend, refactor Group Match slice to 1/X/2
-- **Working tree:** clean dopo il commit di slice #3 (pending al
-  momento di scrivere queste righe — verrà committato insieme a
-  questo HANDOFF).
+- **Working tree:** clean dopo il commit di slice #3 + commit di doc
+  sync di fine sessione 5 (in atto al momento di scrivere queste righe).
 - **Remote:** non ancora configurato. Pending: Gitea homelab + GitHub
   mirror `Pl1n10/toto-mondiale` (privato).
 
@@ -76,12 +75,13 @@ client-side con dot ambra e banner di errore in italiano.
   i nomi delle candidate risolti dalla mappa `id → name` Teams. Pill
   disabilitata + tooltip "Complete previous round" finché upstream
   non è compilato.
-- Page: `/prediction-set/[id]/knockout` (HTTP 200 verificato contro
-  Airtable reale, 32 match render con cascata coerente da winner
-  pre-esistenti del test set `recnWpdJeglgnngOc`).
-- Save end-to-end **demandato a Roberto via browser** — Claude ha
-  verificato il rendering server-side, la cascata, e il typecheck/build
-  ma il PATCH effettivo richiede interazione utente.
+- Page: `/prediction-set/[id]/knockout` (HTTP 200 contro Airtable
+  reale, 32 match render con cascata coerente da winner pre-esistenti
+  del test set `recnWpdJeglgnngOc`).
+- **Save end-to-end verde in browser** (sessione 5): Roberto ha
+  rimosso alcune scelte → banner "Mancano 5 scelte su 32" ✓ →
+  ricompilato tutto → "Saved 14 predictions" → "No changes" ✓.
+  PATCH reale verificato su Airtable. Slice #3 chiusa definitivamente.
 
 ### Lessons learned sessione 5
 
@@ -137,25 +137,31 @@ in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 
 ### Cosa fare nella prossima sessione
 
-1. **Smoke test browser slice #3** (Roberto, 5 min): aprire
-   `/prediction-set/recnWpdJeglgnngOc/knockout` e:
-   - verificare che cliccando una pill A/B il `Predicted Winner` si
-     aggiorni e la cascata propaghi a valle (R16/QF/SF/F);
-   - verificare che cambiare un winner upstream invalidi correttamente
-     la scelta a valle (dot ambra "scelta da rifare");
-   - cliccare Save su tabellone incompleto → confermare il banner in
-     italiano + dot ambra "scelta mancante";
-   - cliccare Save su tabellone completo → confermare PATCH verde su
-     Airtable.
-2. **Risposta a Cipo** (da inviare): "Non serve indagare il lookup tra
-   le righe, gestiamo tutto frontend. Grazie!" — già concordato in
-   sessione 4. Niente di urgente.
+L'MVP delle 3 slice è chiuso. Restano cleanup e prossimi step di
+prodotto, non più feature core:
+
+1. **Risposta a Cipo** + invito a provare l'app via Tailscale
+   (server già su dalla devbox).
+2. **Setup remote git** (Gitea homelab + GitHub mirror
+   `Pl1n10/toto-mondiale` privato). Identità `Pl1n10` /
+   `robnovara@gmail.com`.
+3. **Dev script `-H 0.0.0.0`** in `package.json` (modifica banale per
+   evitare di passarlo a mano ogni volta sotto Tailscale).
+4. **UX "Played"**: se `Match Status = Played` su una partita, l'utente
+   può ancora modificare il proprio `Predicted Result`? Default oggi
+   sì; da decidere prima del torneo reale (probabilmente: no, ma utile
+   anche un soft-lock visivo).
+5. **D-018 helper field text**: indagare con Cipo perché
+   `RECORD_ID()` non gli funziona; nel mentre l'in-memory filter
+   (D-007) regge benissimo per 72/48/32 righe per fetch.
+6. **Prossimi step di prodotto** (non MVP): auth, lock & deadline,
+   deploy VPS, eventuale admin panel.
 
 ### Cose ancora aperte con Cipo (non bloccanti)
 
-- Eventuali precisazioni che Cipo potrebbe aggiungere dopo aver letto
-  la risposta. Non bloccanti — slice #3 è già funzionante con
-  l'architettura corrente (lookup-only).
+- Eventuali feedback dopo che proverà l'app via Tailscale (server up
+  su `devbox:3000` o `100.116.245.75:3000`).
+- Slice #3 funziona end-to-end senza modifiche schema lato Airtable.
 
 ## Cleanup minori pending (non bloccanti)
 

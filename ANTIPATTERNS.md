@@ -169,3 +169,59 @@ npm run dev   # riparte pulito
 Da evitare a monte: scegli **uno** dei due (dev OR build), non
 entrambi sulla stessa cartella `.next`. Se serve verificare il build,
 ferma prima il dev server.
+
+---
+
+## AP-017 — Probe Airtable senza loop su `offset` (paginazione mancante)
+
+Scoperto in sessione 5: il probe diagnostico iniziale dei
+`Knockout Predictions` (`pageSize=100` SENZA loop su `offset`) faceva
+vedere solo 25 record per il prediction set test, suggerendo un bug
+nell'automation di Cipo. **Falsa diagnosi:** i 32 record c'erano tutti
+— stavano semplicemente nelle pagine successive (tabella aveva 128
+record totali, 32 prediction sets × 4 turni in media).
+
+Regola: gli script ad-hoc che probano Airtable devono o (a) iterare
+su `offset` finché `null`, oppure (b) mirare a tabelle con < 100
+record (es. Teams = 48, Groups = 12) dove la prima pagina basta.
+Per le 4 tabelle con N × {72|48|32} righe (predictions), il paging
+è obbligatorio.
+
+```python
+# Pattern corretto per probe ad-hoc
+all_records = []
+offset = None
+while True:
+    params = "pageSize=100"
+    if offset: params += f"&offset={offset}"
+    url = f".../{table}?{params}"
+    data = json.loads(urllib.request.urlopen(req).read())
+    all_records.extend(data['records'])
+    offset = data.get('offset')
+    if not offset: break
+```
+
+`lib/airtable/client.ts → listAllRecords` lo fa già correttamente; il
+problema è solo negli script Python "veloci" che scriviamo per
+diagnosi durante una sessione. Non c'è una sentinella di codice per
+proteggere da questo — solo memoria muscolare.
+
+---
+
+## AP-018 — Scrivere `Predicted Team A/B` su Knockout Predictions
+
+Confermato da Cipo in sessione 4 e codificato nella roadmap di slice
+#3: i campi `Predicted Team A` e `Predicted Team B` sulla tabella
+`Knockout Predictions` sono **lookup**, quindi read-only. Tentare un
+PATCH con uno di questi due field ritorna 422.
+
+Conseguenza architetturale: la cascata fra i round vive **interamente
+nello stato client**. Il PATCH contiene solo `Predicted Winner` per
+ogni match modificato; le candidate A/B per i round successivi a R32
+vengono calcolate al volo da `resolveAllCandidates(topology, winners)`
+e mostrate nelle pill, ma mai persistite.
+
+Per i round non-R32, i valori che vedi in `Knockout Match.Team A/B`
+sono **dummy lasciati da Cipo** durante la fase di setup (es. "Spain
+in finale"). **Non leggerli mai per round != R32**: usa la cascata.
+Per R32 invece sono i veri accoppiamenti compilati dopo i gironi.

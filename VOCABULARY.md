@@ -47,10 +47,20 @@ Airtable identificati con queste **label esatte** del single-select
 | `05 - Third Place`   | Finale 3°-4° posto  | 1 |
 | `06 - Final`         | Finale              | 1 |
 
-Campo writable: `Predicted Winner` (linked → Teams). I round successivi
-al R32 si compongono in cascata dalle scelte utente sui round
-precedenti — **dettaglio implementativo bloccato in attesa di Cipo**,
-vedi `AIRTABLE_INFO_KNOCKOUT.md`.
+Campo writable: `Predicted Winner` (linked → Teams; un singolo team
+id). I round successivi al R32 mostrano in pill A/B i nomi delle due
+candidate calcolate **client-side** dalla [[Bracket Topology]] (vedi
+DECISIONS D-020): per R32 Team A/B vengono direttamente dal
+`Knockout Match.Team A/B`; per R16+ vengono dai `Predicted Winner`
+dei due match upstream, oppure (per il match 3°/4° posto) dai loser.
+
+### Knockout Match
+La fixture pre-popolata in Airtable (`9. Knockout Matches`, 32 record
+totali). Read-only dal frontend. Espone la struttura del tabellone
+tramite **`Slot A Label`** e **`Slot B Label`**: descrizione testuale
+("Winner Group E") per R32, formato regex `^(Winner|Loser) Match \d+$`
+per i round successivi. Il parser in `lib/knockout/bracketTopology.ts`
+ricostruisce la topology a runtime da questi campi.
 
 ### Team
 Una nazionale partecipante. Tabella Airtable `Teams`. Linkata da
@@ -117,6 +127,28 @@ Tornare al valore del server fa tornare a **clean** (transizioni reversibili).
 Un pezzo di funzionalità end-to-end (types → service → validation →
 server action → UI → page → smoke test) per UNA delle tre famiglie di
 pronostico. Si fa una slice alla volta.
+
+### Bracket Topology
+La struttura "chi alimenta chi" del tabellone knockout: per ogni match
+non-R32, mappa "slot A / slot B" → "vincitore (o perdente) di un altro
+match". Vive in `lib/knockout/bracketTopology.ts` come tipo
+`Map<matchNumber, { slotA: BracketSlot, slotB: BracketSlot }>`.
+**Derivata a runtime** dai `Slot A/B Label` del Knockout Match,
+non hardcodata (vedi DECISIONS D-020).
+
+### Cascade reconciliation
+Procedura iterativa eseguita dal client quando l'utente cambia un
+`Predicted Winner` upstream: per ogni match a valle, controlla che il
+winner corrente sia ancora una delle candidate (slotA o slotB della
+topology applicata ai winner correnti); se no, lo azzera e marca la
+row con dot ambra "scelta da rifare". Implementata in
+`reconcileCascade()` dentro `KnockoutTable.tsx`.
+
+### Save completeness check
+Controllo client-side al click di "Save predictions" sulla pagina
+Knockout: se ci sono row senza `Predicted Winner`, niente PATCH; il
+SaveBar mostra il banner italiano concordato con Roberto e marca le
+row vuote con dot ambra "scelta mancante". Vedi DECISIONS D-021.
 
 ### `DEBUG_PREDICTION_SET_ID`
 Env var con un record ID di Prediction Set da usare in sviluppo.
