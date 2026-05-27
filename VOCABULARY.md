@@ -172,6 +172,14 @@ Il frontend **legge ma non scrive** mai questi flag: il flipping è
 manuale via Airtable (per il primo test del torneo) o in futuro via
 Automation Airtable basata sui timestamp delle partite.
 
+Due livelli di enforcement nell'app:
+- **UI** (slice #4): pagina mostra `<LockBanner />`, pill `disabled`,
+  SaveBar nascosta.
+- **Server-side** (slice #5): ogni server action chiama
+  `checkLockGuard(predictionSetId, kind)` prima del PATCH e rifiuta
+  con errore se il flag corrispondente è `true`. Difende contro
+  payload manuali ostili.
+
 ### `DEBUG_PREDICTION_SET_ID`
 Env var con un record ID di Prediction Set da usare in sviluppo.
 Sostituisce la mancanza di auth: il dashboard punta direttamente lì.

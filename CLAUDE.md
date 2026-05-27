@@ -110,10 +110,19 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    Cascata client-side derivata dai `Slot A/B Label` del Knockout Match
    table (parser in `lib/knockout/bracketTopology.ts`); PATCH solo su
    `Predicted Winner`; cascata invalidata + save check completezza
-   gestiti via dot ambra. Save end-to-end browser demandato a Roberto.
-4. ✅ **Connessione ad Airtable reale** — base reale `appPV77eshDFrfgII`
+   gestiti via dot ambra. Save end-to-end verificato in browser.
+4. ✅ **Lock read-only frontend (slice #4)** — le 3 pagine leggono i
+   flag `Group/Knockout Predictions Locked?` dal PredictionSet e
+   passano `readOnly: boolean` ai componenti tabella. Quando lockato:
+   `<LockBanner />` giallo + pill `disabled` + SaveBar nascosta.
+   D-022 step (a).
+5. ✅ **Server-side lock guard (slice #5)** — `checkLockGuard()` in
+   `lib/airtable/predictionSets.ts`, chiamato da tutte le server
+   action subito dopo Zod e prima del PATCH. Difende contro payload
+   inviati a mano da client malevoli. D-022 step (b).
+6. ✅ **Connessione ad Airtable reale** — base reale `appPV77eshDFrfgII`
    integrata: tutti i Table IDs in `config.ts`, enrichment server-side
-   per i nomi Team/Group, save end-to-end verde su slice #1 e #2.
+   per i nomi Team/Group, save end-to-end verde su slice #1, #2, #3.
    PAT deve avere scopes `data.records:read` + `data.records:write`
    (D-019).
 

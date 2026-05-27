@@ -72,10 +72,10 @@ lib/airtable/
   client.ts                     ← low-level HTTP (auth, pagination, batched PATCH)
   mappers.ts                    ← raw AirtableRecord  →  domain object
   mockData.ts                   ← in-memory fallback when env not set
-  predictionSets.ts             ← fetchPredictionSet
+  predictionSets.ts             ← fetchPredictionSet + checkLockGuard
   teams.ts                      ← fetchTeamsNameMap (id → name lookup)
   groupMatchPredictions.ts      ← fetch + batch update (slice #1)
-  groupOrderPredictions.ts      ← fetch + batch update (slice #2)
+  groupOrderPredictions.ts     ← fetch + batch update (slice #2)
   knockoutMatches.ts            ← fetchKnockoutMatches (read-only fixtures)
   knockoutPredictions.ts        ← fetch + batch update (slice #3)
 
@@ -97,7 +97,7 @@ app/                            ← App Router pages + server actions
   prediction-set/[id]/knockout/{page.tsx, actions.ts}
 
 components/
-  ui/{LoadingState, ErrorState, SaveBar}.tsx
+  ui/{LoadingState, ErrorState, SaveBar, LockBanner}.tsx
   predictions/{MatchPredictionTable, GroupOrderTable, KnockoutTable}.tsx
 
 lib/
@@ -116,7 +116,15 @@ Airtable field names.
 
 ## Vertical slices that work today
 
-Three slices, all live against the real Airtable base:
+Three editing slices, all live against the real Airtable base. Each
+page is **lock-aware**: it reads the corresponding boolean flag from
+the Prediction Set (`Group Predictions Locked?` or
+`Knockout Predictions Locked?`); when the flag is `true` the page
+renders a yellow `<LockBanner />`, every pill becomes `disabled`, and
+the SaveBar is not rendered. The server actions also call
+`checkLockGuard` before issuing a PATCH so a hand-crafted POST cannot
+sneak a write into a locked set. See DECISIONS D-022 for the full
+lifecycle and ANTIPATTERNS for the rationale.
 
 ### `/prediction-set/[id]/group-matches` (slice #1)
 
