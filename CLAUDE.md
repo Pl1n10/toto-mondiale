@@ -106,9 +106,11 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    modello segno **1/X/2** (Totocalcio, vedi D-015). Niente score esatto.
 2. ✅ **Group Order Predictions** — slice completa contro Airtable reale,
    pill 1·2·3·4 con duplicate-rank guard live (client + Zod superRefine).
-3. ⏳ **Knockout Predictions** — UI placeholder. **Blocked**: serve
-   risposta di Cipo sulla semantica di `Predicted Team A/B`
-   (vedi `AIRTABLE_INFO_KNOCKOUT.md`).
+3. ✅ **Knockout Predictions** — slice completa contro Airtable reale.
+   Cascata client-side derivata dai `Slot A/B Label` del Knockout Match
+   table (parser in `lib/knockout/bracketTopology.ts`); PATCH solo su
+   `Predicted Winner`; cascata invalidata + save check completezza
+   gestiti via dot ambra. Save end-to-end browser demandato a Roberto.
 4. ✅ **Connessione ad Airtable reale** — base reale `appPV77eshDFrfgII`
    integrata: tutti i Table IDs in `config.ts`, enrichment server-side
    per i nomi Team/Group, save end-to-end verde su slice #1 e #2.

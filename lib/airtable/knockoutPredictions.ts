@@ -15,8 +15,6 @@ import type {
   KnockoutPredictionUpdate,
 } from '@/types/domain';
 
-// Skeleton — keep simple until knockout structure is finalised.
-
 const mockStore = new Map<string, KnockoutPrediction[]>();
 
 function getMockBucket(predictionSetId: string): KnockoutPrediction[] {
@@ -28,21 +26,10 @@ function getMockBucket(predictionSetId: string): KnockoutPrediction[] {
   return bucket;
 }
 
-// Preserve the order defined in mockData.ts (round_of_32 → final → 3rd place).
-const ROUND_ORDER = [
-  'Round of 32',
-  'Round of 16',
-  'Quarterfinals',
-  'Semifinals',
-  'Final',
-  'Third place',
-];
-
+// Match numbers are dense and ascending across rounds (73..104), so sorting
+// by matchNumber yields R32 → R16 → QF → SF → Third Place → Final in order.
 function sortKey(a: KnockoutPrediction, b: KnockoutPrediction): number {
-  const ai = ROUND_ORDER.indexOf(a.round);
-  const bi = ROUND_ORDER.indexOf(b.round);
-  if (ai !== bi) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-  return (a.slot ?? '').localeCompare(b.slot ?? '');
+  return (a.matchNumber ?? 0) - (b.matchNumber ?? 0);
 }
 
 export async function fetchKnockoutPredictions(

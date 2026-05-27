@@ -1,6 +1,7 @@
 import {
   GROUP_MATCH_PREDICTION_FIELDS,
   GROUP_ORDER_PREDICTION_FIELDS,
+  KNOCKOUT_MATCH_FIELDS,
   KNOCKOUT_PREDICTION_FIELDS,
   PREDICTION_SET_FIELDS,
 } from './config';
@@ -9,6 +10,7 @@ import type {
   GroupMatchPrediction,
   GroupMatchResult,
   GroupOrderPrediction,
+  KnockoutMatch,
   KnockoutPrediction,
   PredictionSet,
 } from '@/types/domain';
@@ -106,7 +108,7 @@ export function mapKnockoutPrediction(record: AirtableRecord): KnockoutPredictio
     id: record.id,
     predictionSetId: firstLinkedId(f[KNOCKOUT_PREDICTION_FIELDS.predictionSet]) ?? '',
     round: firstString(f[KNOCKOUT_PREDICTION_FIELDS.round]) ?? '?',
-    slot: firstString(f[KNOCKOUT_PREDICTION_FIELDS.slot]),
+    matchNumber: firstNumber(f[KNOCKOUT_PREDICTION_FIELDS.slot]),
     candidateTeam1Name:
       firstString(f[KNOCKOUT_PREDICTION_FIELDS.candidateTeam1Name]) ??
       firstString(f[KNOCKOUT_PREDICTION_FIELDS.candidateTeam1]),
@@ -116,10 +118,22 @@ export function mapKnockoutPrediction(record: AirtableRecord): KnockoutPredictio
     candidateTeam1Id: firstLinkedId(f[KNOCKOUT_PREDICTION_FIELDS.candidateTeam1]),
     candidateTeam2Id: firstLinkedId(f[KNOCKOUT_PREDICTION_FIELDS.candidateTeam2]),
     // No dedicated "Predicted Winner Name" lookup exists in Airtable today;
-    // resolving id → name requires either a new lookup on the Knockout
-    // Predictions table or an enrichment pass through the Teams table.
-    // Left undefined for now — slice #3 is still placeholder UI.
+    // the page enriches `predictedWinnerTeamId` via the Teams id→name map.
     predictedWinnerTeamName: undefined,
     predictedWinnerTeamId: firstLinkedId(f[KNOCKOUT_PREDICTION_FIELDS.predictedWinner]),
+  };
+}
+
+export function mapKnockoutMatch(record: AirtableRecord): KnockoutMatch {
+  const f = record.fields;
+  return {
+    id: record.id,
+    matchNumber: firstNumber(f[KNOCKOUT_MATCH_FIELDS.matchNumber]) ?? 0,
+    phase: firstString(f[KNOCKOUT_MATCH_FIELDS.phase]) ?? '?',
+    matchName: firstString(f[KNOCKOUT_MATCH_FIELDS.matchName]) ?? '?',
+    slotALabel: firstString(f[KNOCKOUT_MATCH_FIELDS.slotALabel]) ?? '',
+    slotBLabel: firstString(f[KNOCKOUT_MATCH_FIELDS.slotBLabel]) ?? '',
+    teamAId: firstLinkedId(f[KNOCKOUT_MATCH_FIELDS.teamA]),
+    teamBId: firstLinkedId(f[KNOCKOUT_MATCH_FIELDS.teamB]),
   };
 }

@@ -62,13 +62,33 @@ export interface KnockoutPrediction {
   id: RecordId;
   predictionSetId: RecordId;
   round: string;
-  slot?: string;
+  /** Numeric `Match Number` (73..104). Joins this prediction to its KnockoutMatch. */
+  matchNumber?: number;
+  /** Candidate team ids/names from Airtable lookups. For non-R32 rounds these
+   *  reflect the dummy fixture data the admin left in `Knockout Match.Team A/B`
+   *  and MUST NOT be trusted — derive the real candidates from the cascade. */
   candidateTeam1Name?: string;
   candidateTeam2Name?: string;
   candidateTeam1Id?: RecordId;
   candidateTeam2Id?: RecordId;
   predictedWinnerTeamName?: string;
   predictedWinnerTeamId?: RecordId;
+}
+
+/** Read-only fixture record. Source of the R32 pairings and of the bracket
+ *  topology (via Slot A/B Label) for the deeper rounds. */
+export interface KnockoutMatch {
+  id: RecordId;
+  matchNumber: number;
+  phase: string;
+  matchName: string;
+  slotALabel: string;
+  slotBLabel: string;
+  /** For R32 these point to the two teams in the fixture. For deeper rounds
+   *  Airtable currently stores dummy values left over from manual testing —
+   *  the cascade owns truth there. */
+  teamAId?: RecordId;
+  teamBId?: RecordId;
 }
 
 // Update payload types — only WRITABLE fields go in here.

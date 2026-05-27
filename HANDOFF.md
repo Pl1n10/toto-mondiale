@@ -1,24 +1,27 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-26 fine sessione 4.** Slice #1 (Group Match, modello
-1/X/2) e #2 (Group Order, rank 1·2·3·4) chiusi end-to-end contro
-Airtable reale. Slice #3 (Knockout) in attesa della risposta di Cipo
-su come funziona la cascata fra i round; piano di esecuzione completo
-in `AIRTABLE_INFO_KNOCKOUT.md`.
+**Stato al 2026-05-27 fine sessione 5.** Tutte e tre le slice (Group
+Match 1/X/2, Group Order 1·2·3·4, Knockout con cascata) chiuse
+end-to-end contro Airtable reale. La sessione 5 ha sbloccato slice #3
+con il go di Roberto sulle 3 decisioni UX (cascata invalidata, match
+3/4, save check completezza), ha derivato la bracket topology dai Slot
+Labels Airtable invece di hardcodarla, ha implementato la cascata
+client-side con dot ambra e banner di errore in italiano.
 
 ## Stato git
 
 - **Branch:** `main`
 - **Ultimi commit:**
+  - `e98ab33` Docs: confirm knockout UX decisions, add save completeness check
+  - `c2ace04` Docs: capture Cipo's knockout reply + Roberto's one-shot clarification
+  - `bf0fbda` Docs sync before slice #3: lessons learned + Cipo knockout question
   - `c4330f8` Add Group Order editing UI with duplicate-rank guard (slice #2)
   - `6238d81` Connect to real Airtable backend, refactor Group Match slice to 1/X/2
-  - `2d983e8` Session 2: prepare Airtable info request, partial data collected
-  - `fc84d0a` Bootstrap Next.js frontend with Airtable adapter
-- **Working tree:** clean dopo l'ultimo commit di sessione 4 (questo
-  HANDOFF e gli altri meta-file aggiornati vanno in un commit
-  "Docs sync before slice #3").
-- **Remote:** non ancora configurato. Pending per domani: Gitea
-  homelab + GitHub mirror `Pl1n10/toto-mondiale` (privato).
+- **Working tree:** clean dopo il commit di slice #3 (pending al
+  momento di scrivere queste righe — verrà committato insieme a
+  questo HANDOFF).
+- **Remote:** non ancora configurato. Pending: Gitea homelab + GitHub
+  mirror `Pl1n10/toto-mondiale` (privato).
 
 ## Cosa è verde end-to-end
 
@@ -46,12 +49,63 @@ in `AIRTABLE_INFO_KNOCKOUT.md`.
   di Airtable coerce string→target, NON integer→text. Il service ora
   converte a stringa via `String(...)` prima del PATCH.
 
-## Slice #3 — Knockout Predictions ⏳ (entry point per la prossima sessione)
+### Slice #3 — Knockout Predictions ✅
+
+- **Caso B** (cascata frontend-side, conferma Cipo sessione 4) +
+  **Predicted Team A/B sono lookup read-only**, quindi mai in PATCH.
+  Il PATCH contiene solo `Predicted Winner`. La cascata vive interamente
+  nello stato client.
+- **Bracket topology derivata a runtime** dai `Slot A Label` / `Slot B Label`
+  del Knockout Match table (sessione 5 scoperta durante il probe; non
+  era stato menzionato da Cipo ma è già nei dati). Niente mappa
+  hardcodata: parser in `lib/knockout/bracketTopology.ts` legge i label
+  nel formato `^(Winner|Loser) Match (\d+)$` e fallisce in modo
+  esplicito se Cipo cambia convenzione. Più robusto.
+- **Match 3°/4°**: candidate = i due perdenti delle SF (via outcome
+  `'loser'` nel parser). Funziona out-of-the-box senza casi speciali.
+- **Cascata invalidata**: quando l'utente cambia un winner upstream
+  e una scelta a valle non è più tra le candidate, `reconcileCascade`
+  azzera quella scelta a valle e marca la riga con dot ambra
+  "scelta da rifare" (tooltip). Iterativo: si propaga finché stabilizza.
+- **Save check completezza**: al click di Save, se ci sono row senza
+  `Predicted Winner`, niente PATCH; banner rosso in italiano
+  ("Attenzione!!! Mancano delle squadre…") con conteggio, ogni row
+  vuota riceve dot ambra "scelta mancante". Coerente col modello
+  one-shot pre-lock.
+- **Display**: 6 sezioni (R32 → Final), pill A/B per ogni match con
+  i nomi delle candidate risolti dalla mappa `id → name` Teams. Pill
+  disabilitata + tooltip "Complete previous round" finché upstream
+  non è compilato.
+- Page: `/prediction-set/[id]/knockout` (HTTP 200 verificato contro
+  Airtable reale, 32 match render con cascata coerente da winner
+  pre-esistenti del test set `recnWpdJeglgnngOc`).
+- Save end-to-end **demandato a Roberto via browser** — Claude ha
+  verificato il rendering server-side, la cascata, e il typecheck/build
+  ma il PATCH effettivo richiede interazione utente.
+
+### Lessons learned sessione 5
+
+1. **Probe Airtable: SEMPRE con paginazione.** Il probe iniziale aveva
+   `pageSize=100` senza loop offset e mancava 7 record del set test,
+   facendo credere che ci fosse un bug di Airtable automation
+   (`25 records invece di 32`). In realtà i 32 c'erano: il bug era il
+   probe. Lezione: usare `listAllRecords` style anche negli script
+   ad-hoc, oppure forzare `pageSize=10` per testare il loop.
+2. **Slot Labels sono già la topology.** L'idea originale era di
+   hardcodare la mappa "match N → match M slot A/B" in
+   `bracketTopology.ts`. Il probe ha rivelato che Airtable ha già
+   `Slot A Label = "Winner Match 74"` etc. Derivare da lì è più
+   robusto: se Cipo cambia un accoppiamento, l'app si adatta da sola.
+3. **`Team A/B` dei round non-R32 sono dummy.** Cipo li ha lasciati
+   compilati con dati di esempio (Spain in finale, ecc.). Non leggerli
+   mai per round != R32; usare la cascata.
+
+## Slice #3 — entry point archivio (cosa avevamo programmato)
 
 **Sbloccato da Cipo a fine sessione 4** (risposta intera + decodifica
 in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 
-### Modello deciso
+### Modello previsto (preserved for reference)
 
 - **Caso B** confermato da Cipo: cascata frontend-side. CON UNA
   CORREZIONE rispetto al piano originale: `Predicted Team A/B` sono
@@ -83,79 +137,25 @@ in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 
 ### Cosa fare nella prossima sessione
 
-1. **Probe di conferma (1 minuto):** verifica che effettivamente
-   `Knockout Match.Team A/B` siano popolati solo per i 16 record R32 e
-   vuoti per i 16 round successivi:
-
-   ```bash
-   set -a && . ./.env.local && set +a
-   python3 - <<'PY'
-   import json, os, urllib.request
-   url = f"https://api.airtable.com/v0/{os.environ['AIRTABLE_BASE_ID']}/tbl9IUt0116lvkbki?pageSize=100"
-   req = urllib.request.Request(url, headers={'Authorization': f"Bearer {os.environ['AIRTABLE_API_TOKEN']}"})
-   recs = json.loads(urllib.request.urlopen(req).read())['records']
-   from collections import Counter
-   c = Counter()
-   for r in recs:
-       has_a = bool(r['fields'].get('Team A'))
-       has_b = bool(r['fields'].get('Team B'))
-       phase = (r['fields'].get('Phase') or '?')
-       c[(phase, has_a and has_b)] += 1
-   for k, v in sorted(c.items()): print(k, v)
-   PY
-   ```
-
-2. **`lib/knockout/bracketTopology.ts`** (nuovo): mappa statica
-   match-number → slot-output. Per il formato 48 squadre serve
-   sapere "il vincitore di R32 match N alimenta R16 match M slot A/B".
-   Match numbers 73..104 da `KNOCKOUT_MATCH_FIELDS.matchNumber`.
-
-3. **Service & schema:**
-   - `lib/airtable/knockoutPredictions.ts`: implementare
-     `updateKnockoutPredictionsBatch` (oggi è placeholder). PATCH solo
-     `Predicted Winner`.
-   - `KNOCKOUT_PREDICTION_WRITABLE_FIELDS` già contiene solo
-     `predictedWinner`. ✓
-   - `lib/validation/knockoutPredictionSchema.ts`: estendere per il
-     batch.
-
-4. **Server action:** `app/prediction-set/[id]/knockout/actions.ts`
-   (nuovo).
-
-5. **UI:** riscrivere `components/predictions/KnockoutTable.tsx` come
-   client component. 6 sezioni (uno per round). Per ogni partita,
-   pill A / B che mostrano i nomi delle candidate (`null` → pill
-   disabled + tooltip "complete the previous round"). Pill selezionata
-   = winner. State machine identica a slice #1/#2.
-
-6. **UX cascata invalidata** (decisione confermata, da implementare):
-   quando l'utente cambia il `Predicted Winner` di un R32 e il suo
-   R16 a valle puntava a una squadra che ora non passa più, la scelta
-   a valle diventa `null` con dot ambra "scelta da rifare". Non reset
-   silenzioso, non blocco preventivo.
-
-7. **Save check di completezza** (decisione confermata, da implementare):
-   il `SaveBar` calcola `incompleteCount = 32 - winnersFilled`. Se > 0
-   al click di Save: nessun PATCH, banner rosso in alto con il messaggio
-   concordato, e ogni match senza winner riceve un dot ambra
-   "scelta mancante" (stesso pattern visivo della cascata invalidata).
-   Save abilitato solo se ci sono modifiche dirty (come slice #1/#2),
-   ma il check completezza è sullo stato corrente del tabellone, non
-   sul dirty set.
-
-8. **Mock data:** aggiornare `buildMockKnockoutPredictions` per
-   riflettere il modello reale (con riferimenti a bracket topology).
-
-9. **Smoke test:** probe PATCH manuale → save in browser → conferma.
+1. **Smoke test browser slice #3** (Roberto, 5 min): aprire
+   `/prediction-set/recnWpdJeglgnngOc/knockout` e:
+   - verificare che cliccando una pill A/B il `Predicted Winner` si
+     aggiorni e la cascata propaghi a valle (R16/QF/SF/F);
+   - verificare che cambiare un winner upstream invalidi correttamente
+     la scelta a valle (dot ambra "scelta da rifare");
+   - cliccare Save su tabellone incompleto → confermare il banner in
+     italiano + dot ambra "scelta mancante";
+   - cliccare Save su tabellone completo → confermare PATCH verde su
+     Airtable.
+2. **Risposta a Cipo** (da inviare): "Non serve indagare il lookup tra
+   le righe, gestiamo tutto frontend. Grazie!" — già concordato in
+   sessione 4. Niente di urgente.
 
 ### Cose ancora aperte con Cipo (non bloccanti)
 
-- Cipo si è offerto di "vedere se c'è un modo di lookup tra le righe"
-  in Airtable. **Risposta da dare a Cipo** (da inviare domani):
-  "Non serve, gestiamo tutto frontend. Grazie!" — così non perde
-  tempo per nulla. ✅ Roberto ha confermato il testo.
 - Eventuali precisazioni che Cipo potrebbe aggiungere dopo aver letto
-  la risposta. Non bloccanti — lo slice #3 può iniziare anche prima.
+  la risposta. Non bloccanti — slice #3 è già funzionante con
+  l'architettura corrente (lookup-only).
 
 ## Cleanup minori pending (non bloccanti)
 
@@ -197,7 +197,8 @@ npm run dev -- -H 0.0.0.0   # dev server raggiungibile via Tailscale
 ```
 
 Smoke test runtime già verde (slice #1 e #2 con save end-to-end
-contro Airtable reale).
+contro Airtable reale; slice #3 verificato server-side, save in
+browser demandato a Roberto in sessione 6).
 
 ## File da leggere per riprendere il filo (in ordine)
 
