@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { updateGroupMatchPredictionsBatch } from '@/lib/airtable/groupMatchPredictions';
+import { checkLockGuard } from '@/lib/airtable/predictionSets';
 import {
   groupMatchPredictionBatchSchema,
   type GroupMatchPredictionBatchInput,
@@ -22,6 +23,9 @@ export async function saveGroupMatchPredictions(
   }
 
   try {
+    const lockError = await checkLockGuard(parsed.data.predictionSetId, 'group');
+    if (lockError) return { ok: false, error: lockError };
+
     const result = await updateGroupMatchPredictionsBatch(parsed.data.updates);
     revalidatePath(
       `/prediction-set/${parsed.data.predictionSetId}/group-matches`,

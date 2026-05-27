@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { updateKnockoutPredictionsBatch } from '@/lib/airtable/knockoutPredictions';
+import { checkLockGuard } from '@/lib/airtable/predictionSets';
 import {
   knockoutPredictionBatchSchema,
   type KnockoutPredictionBatchInput,
@@ -22,6 +23,9 @@ export async function saveKnockoutPredictions(
   }
 
   try {
+    const lockError = await checkLockGuard(parsed.data.predictionSetId, 'knockout');
+    if (lockError) return { ok: false, error: lockError };
+
     const result = await updateKnockoutPredictionsBatch(parsed.data.updates);
     revalidatePath(`/prediction-set/${parsed.data.predictionSetId}/knockout`);
     return { ok: true, result };

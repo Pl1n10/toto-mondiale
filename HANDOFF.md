@@ -12,12 +12,12 @@ client-side con dot ambra e banner di errore in italiano.
 
 - **Branch:** `main`
 - **Ultimi commit:**
+  - `b4f5e1f` Add slice #4: read-only mode when the prediction set is locked
   - `f93be96` Docs: capture 5-stage tournament lifecycle spec from Cipo
   - `2df48db` Bind dev server to 0.0.0.0 so Tailscale clients can reach it
   - `66c4760` Docs: record GitHub origin setup in HANDOFF
   - `09be5e5` Docs: full sync at end of session 5 (slice #3 closed end-to-end)
-  - `769065f` Add Knockout slice with cascade + save completeness check (slice #3)
-- **Working tree:** clean (sessione 5 + slice #4 chiusa).
+- **Working tree:** clean (sessione 5 + slice #4 + slice #5 chiuse).
 - **Remote:** `origin` su `git@github.com:Pl1n10/toto-mondiale.git`
   (privato, branch `main` tracking). Mirror Gitea homelab ancora
   pending — bassa priorità.
@@ -91,14 +91,28 @@ client-side con dot ambra e banner di errore in italiano.
   componenti tabella.
 - Quando un flag è `true`: banner `<LockBanner />` giallo in cima
   ("Schedina lockata — modifiche disabilitate"), tutti i pill
-  `disabled`, SaveBar **nascosta**. Save in JS è ulteriormente bloccato
-  dal fatto che il bottone non esiste; la server action resta
-  vulnerabile a richieste arbitrarie — defense-in-depth server-side è
-  step (b) del rollout D-022, da fare nella prossima slice.
+  `disabled`, SaveBar **nascosta**.
 - Smoke test verificato: group flag locked → group-matches +
   group-order in read-only, knockout invariato (e viceversa). I due
   flag sono indipendenti come da D-022.
 - Slice pronta per il test di Cipo del 28 maggio 2026.
+
+### Slice #5 — Defense-in-depth server-side del lock ✅
+
+- Helper shared `checkLockGuard(predictionSetId, kind)` in
+  `lib/airtable/predictionSets.ts`: re-fetcha il PredictionSet e
+  ritorna un messaggio di errore se il flag corrispondente è `true`,
+  altrimenti `null`.
+- Le 3 server action (`saveGroupMatch*`, `saveGroupOrder*`,
+  `saveKnockout*`) chiamano `checkLockGuard` subito dopo la
+  validazione Zod e prima del PATCH. Se lockato, ritornano
+  `{ ok: false, error: "Schedina lockata: …" }` senza toccare
+  Airtable.
+- Chiude lo step (b) del rollout D-022. Niente test runtime esplicito:
+  la slice protegge contro client malevoli che inviano payload
+  direttamente alle server action, scenario che non emerge naturalmente
+  da un click via UI (slice #4 nasconde già il bottone). Logica
+  banale e già validata dal typecheck.
 
 ### Lessons learned sessione 5
 
@@ -154,31 +168,29 @@ in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 
 ### Cosa fare nella prossima sessione
 
-Slice #4 (lock read-only frontend) chiusa in sessione 5: Cipo può
-testare domani 28 maggio senza rischio che qualcuno editi schedine
-lockate dalla UI.
+Slice #4 + #5 (lock read-only frontend + defense-in-depth server-side)
+chiuse in sessione 5. D-022 step (a) e (b) implementati. Cipo può
+testare il 28 maggio senza rischio che la UI o un client malevolo
+scriva su una schedina lockata.
 
-**Priorità alta — defense-in-depth server-side del lock**
+**Priorità alta — niente urgente**
 
-1. La server action `saveGroupMatch*` / `saveGroupOrder*` /
-   `saveKnockout*` deve ri-fetchare il `PredictionSet` prima del PATCH
-   e rifiutare con `SaveResult.ok=false, error="Prediction set lockato"`
-   se il flag corrispondente è `true`. Step (b) di D-022. Slice
-   piccola (~15-20 min, una funzione utility shared + 3 wiring).
+Le feature core dell'MVP sono complete. La prossima slice naturale è
+auth (D-022 step c), che è grande.
 
 **Priorità media — decisioni / cleanup**
 
-2. **D-018 helper field text**: indagare con Cipo perché
+1. **D-018 helper field text**: indagare con Cipo perché
    `RECORD_ID()` non gli funziona; nel mentre l'in-memory filter
    (D-007) regge benissimo per 72/48/32 righe per fetch.
 
 **Priorità bassa — feature grosse successive**
 
-3. **Auth + visibility model** (slice grande, prerequisito hard per
+2. **Auth + visibility model** (slice grande, prerequisito hard per
    D-022 punto 4): scoping delle Prediction Sets per utente loggato;
    sblocca la "vista altrui" durante gli stage lockati.
-4. **Deploy** — VPS Proxmox + Cloudflare Tunnel.
-5. **Mirror Gitea homelab** (`origin` GitHub è già a posto).
+3. **Deploy** — VPS Proxmox + Cloudflare Tunnel.
+4. **Mirror Gitea homelab** (`origin` GitHub è già a posto).
 
 ### Cose ancora aperte con Cipo (non bloccanti)
 
