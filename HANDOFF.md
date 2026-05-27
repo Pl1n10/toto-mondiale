@@ -142,20 +142,16 @@ in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 L'MVP delle 3 slice è chiuso. Restano cleanup e prossimi step di
 prodotto, non più feature core:
 
-1. **Risposta a Cipo** + invito a provare l'app via Tailscale
-   (server già su dalla devbox).
-2. **Dev script `-H 0.0.0.0`** in `package.json` (modifica banale per
-   evitare di passarlo a mano ogni volta sotto Tailscale).
-3. **UX "Played"**: se `Match Status = Played` su una partita, l'utente
+1. **UX "Played"**: se `Match Status = Played` su una partita, l'utente
    può ancora modificare il proprio `Predicted Result`? Default oggi
    sì; da decidere prima del torneo reale (probabilmente: no, ma utile
    anche un soft-lock visivo).
-4. **D-018 helper field text**: indagare con Cipo perché
+2. **D-018 helper field text**: indagare con Cipo perché
    `RECORD_ID()` non gli funziona; nel mentre l'in-memory filter
    (D-007) regge benissimo per 72/48/32 righe per fetch.
-5. **Mirror Gitea homelab** (`origin` GitHub è già a posto). Bassa
+3. **Mirror Gitea homelab** (`origin` GitHub è già a posto). Bassa
    priorità — utile se vogliamo CI/CD interno via Woodpecker.
-6. **Prossimi step di prodotto** (non MVP): auth, lock & deadline,
+4. **Prossimi step di prodotto** (non MVP): auth, lock & deadline,
    deploy VPS, eventuale admin panel.
 
 ### Cose ancora aperte con Cipo (non bloccanti)
