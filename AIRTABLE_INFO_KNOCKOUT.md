@@ -124,7 +124,7 @@ oggi non implementata).
    scelta a valle, vedi decisione aperta sotto.
 7. Save: PATCH di tutti i `Predicted Winner` modificati, in batch da 10.
 
-### Decisioni UX ancora aperte (da chiudere domani con Roberto)
+### Decisioni UX (chiuse in sessione 5, 2026-05-27)
 
 #### Aperta 1 — Cosa fare quando una scelta upstream invalida una scelta a valle
 
@@ -155,7 +155,7 @@ silenziosamente, non frustra con blocchi preventivi. Coerente col
 modello one-shot: l'utente è già sulla pagina, scrolla giù, vede
 le righe ambra, le ricompila in 10 secondi.
 
-⏳ **In attesa di conferma di Roberto.**
+✅ **Confermata da Roberto sessione 5 (2026-05-27).**
 
 #### Aperta 2 — Candidate del match 3°/4° posto
 
@@ -177,7 +177,45 @@ Bracket topology deve tener traccia non solo del winner ma anche del
 **Raccomandazione Claude:** implementare così come sopra. Niente di
 particolare da decidere, è la regola FIFA standard.
 
-⏳ **In attesa di conferma di Roberto.** (probabilmente solo formalità)
+✅ **Confermata da Roberto sessione 5 (2026-05-27).**
+
+#### Aperta 3 — Save check di completezza (nuova, sollevata da Roberto in sessione 5)
+
+Roberto chiede che il bottone Save verifichi che l'utente abbia
+compilato tutto il tabellone prima di mandare il PATCH. Citazione
+testuale del messaggio:
+
+> Si può anche fare un check sul tasto dell'utente "Salva" (qualcosa
+> del genere) che se l'utente non ha inserito tutte le squadre nel
+> tabellone esce un messaggio di errore tipo "Attenzione!!! Mancano
+> delle squadre; prego ricontrollare il tabellone e inserire le
+> mancanti. Grazie".
+
+**Decisione finale (Roberto + Claude):**
+
+- Tabellone "completo" = tutti i 32 `Predicted Winner` compilati,
+  ognuno valido rispetto alle candidate del proprio match.
+- Comportamento al click di Save:
+  - Se incompleto → niente PATCH; banner rosso in alto col messaggio
+    sopra citato; ogni match senza winner riceve dot ambra
+    "scelta mancante". Banner mostra anche il conteggio (es.
+    "Mancano 3 scelte su 32") per orientare l'utente.
+  - Se completo → batch PATCH come slice #1/#2.
+- Save abilitato solo se ci sono modifiche dirty (come slice #1/#2),
+  ma il check completezza è sullo **stato corrente del tabellone**,
+  non sul dirty set. Quindi un utente che apre la pagina con 28/32
+  compilati e cambia 1 match scatena comunque il banner se non
+  compila i 4 mancanti.
+- Razionale: il modello è "one-shot pre-lock". Salvare stati parziali
+  intermedi è incoerente con quel modello — se permettiamo save
+  parziali, l'utente potrebbe credere di aver finito quando non l'ha
+  fatto.
+
+**Identità visiva:** stesso dot ambra usato per la cascata invalidata.
+Due semantiche ("scelta da rifare" / "scelta mancante"), stesso colore.
+Coerente: in entrambi i casi il match richiede attenzione dell'utente.
+
+✅ **Confermata da Roberto sessione 5 (2026-05-27).**
 
 ### Cose ancora aperte con Cipo
 

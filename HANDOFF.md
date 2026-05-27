@@ -68,19 +68,18 @@ in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
   frontend mostra solo le 2 candidate pertinenti. Cipo non tocca
   niente in Airtable.
 
-### Decisioni UX ancora da confermare con Roberto (prima cosa domani)
+### Decisioni UX confermate (sessione 5, 2026-05-27)
 
-Entrambe dettagliate in `AIRTABLE_INFO_KNOCKOUT.md` → "Decisioni UX
-ancora aperte". In sintesi:
-
-1. **Cascata invalidata:** se cambi un winner upstream e le scelte a
-   valle puntano a squadre che non passano più, cosa fa la UI?
-   Raccomandazione Claude: (i) `null` + dot ambra "scelta da rifare".
-2. **Match 3°/4° posto:** candidate = i due perdenti delle SF (regola
-   FIFA standard). Raccomandazione Claude: implementare così, niente
-   di particolare da decidere.
-
-Roberto deve dare il via libera su entrambe prima che parta il codice.
+1. **Cascata invalidata** → `null` + dot ambra "scelta da rifare".
+   Coerente con stato "incomplete" generale della UI.
+2. **Match 3°/4°** → candidate = i due perdenti delle SF
+   (regola FIFA standard). Bracket topology deve esporre `loserOf(matchN)`.
+3. **Save check di completezza** (nuovo, sessione 5): il bottone Save
+   verifica che tutti i 32 `Predicted Winner` siano compilati. Se
+   incompleto: banner di errore in alto ("Attenzione!!! Mancano delle
+   squadre; prego ricontrollare il tabellone e inserire le mancanti.
+   Grazie") + dot ambra sui match senza winner. Save bloccato finché
+   non si completa. Coerente col modello one-shot pre-lock.
 
 ### Cosa fare nella prossima sessione
 
@@ -129,16 +128,25 @@ Roberto deve dare il via libera su entrambe prima che parta il codice.
    disabled + tooltip "complete the previous round"). Pill selezionata
    = winner. State machine identica a slice #1/#2.
 
-6. **UX cascata invalidata** (decisione presa, da implementare):
+6. **UX cascata invalidata** (decisione confermata, da implementare):
    quando l'utente cambia il `Predicted Winner` di un R32 e il suo
    R16 a valle puntava a una squadra che ora non passa più, la scelta
    a valle diventa `null` con dot ambra "scelta da rifare". Non reset
    silenzioso, non blocco preventivo.
 
-7. **Mock data:** aggiornare `buildMockKnockoutPredictions` per
+7. **Save check di completezza** (decisione confermata, da implementare):
+   il `SaveBar` calcola `incompleteCount = 32 - winnersFilled`. Se > 0
+   al click di Save: nessun PATCH, banner rosso in alto con il messaggio
+   concordato, e ogni match senza winner riceve un dot ambra
+   "scelta mancante" (stesso pattern visivo della cascata invalidata).
+   Save abilitato solo se ci sono modifiche dirty (come slice #1/#2),
+   ma il check completezza è sullo stato corrente del tabellone, non
+   sul dirty set.
+
+8. **Mock data:** aggiornare `buildMockKnockoutPredictions` per
    riflettere il modello reale (con riferimenti a bracket topology).
 
-8. **Smoke test:** probe PATCH manuale → save in browser → conferma.
+9. **Smoke test:** probe PATCH manuale → save in browser → conferma.
 
 ### Cose ancora aperte con Cipo (non bloccanti)
 
