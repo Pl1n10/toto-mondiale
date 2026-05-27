@@ -150,6 +150,28 @@ Knockout: se ci sono row senza `Predicted Winner`, niente PATCH; il
 SaveBar mostra il banner italiano concordato con Roberto e marca le
 row vuote con dot ambra "scelta mancante". Vedi DECISIONS D-021.
 
+### Tournament stage (≠ Knockout Phase)
+Il ciclo di vita di un torneo, da Stage 1 (pre-gironi) a Stage 5
+(torneo concluso). 5 stage totali, governati da due flag boolean
+**per ogni** `Prediction Set` (`Group Predictions Locked?` /
+`Knockout Predictions Locked?`). Lo stage determina sia la
+**editability** delle schedine sia la **visibilità delle schedine
+altrui**. Vedi DECISIONS D-022 per la tabella completa.
+
+Nel codice ci riferiamo a questo concetto come **stage** per evitare
+ambiguità col `Phase` del Knockout (R32 / R16 / QF / SF / Third / Final).
+
+### Lock flag
+Boolean su `Prediction Set` che controlla lo stage corrente di una
+schedina. Due flag indipendenti:
+- `Group Predictions Locked?` → quando `true`, Group Match + Group
+  Order in read-only
+- `Knockout Predictions Locked?` → quando `true`, Knockout in read-only
+
+Il frontend **legge ma non scrive** mai questi flag: il flipping è
+manuale via Airtable (per il primo test del torneo) o in futuro via
+Automation Airtable basata sui timestamp delle partite.
+
 ### `DEBUG_PREDICTION_SET_ID`
 Env var con un record ID di Prediction Set da usare in sviluppo.
 Sostituisce la mancanza di auth: il dashboard punta direttamente lì.

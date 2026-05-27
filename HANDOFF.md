@@ -139,26 +139,45 @@ in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 
 ### Cosa fare nella prossima sessione
 
-L'MVP delle 3 slice è chiuso. Restano cleanup e prossimi step di
-prodotto, non più feature core:
+L'MVP delle 3 slice è chiuso. La specifica del **lifecycle a 5 stage**
+(D-022) è arrivata da Cipo in sessione 5 e definisce la prossima
+roadmap. Cipo testa il lock dei gironi **domani 28 maggio 2026**.
 
-1. **UX "Played"**: se `Match Status = Played` su una partita, l'utente
-   può ancora modificare il proprio `Predicted Result`? Default oggi
-   sì; da decidere prima del torneo reale (probabilmente: no, ma utile
-   anche un soft-lock visivo).
-2. **D-018 helper field text**: indagare con Cipo perché
+**Priorità alta — slice #4 "Lock read-only" (per il test del 28 maggio)**
+
+1. Le 3 pagine di editing devono **leggere il flag corrispondente** dal
+   `Prediction Set` e passare un `readOnly: boolean` al componente:
+   - `/group-matches` → legge `groupPredictionsLocked`
+   - `/group-order` → legge `groupPredictionsLocked`
+   - `/knockout` → legge `knockoutPredictionsLocked`
+2. Quando `readOnly = true`: tutte le pill `disabled`, SaveBar nascosta
+   o mostra "Schedina lockata", banner informativo in cima.
+3. **Defense-in-depth server-side** opzionale: la server action
+   ri-fetcha il flag prima del PATCH e rifiuta se lockato. Slice
+   successiva, non bloccante per il test del 28.
+
+**Priorità media — decisioni di prodotto rimaste**
+
+4. **UX "Played"** — **decade**. L'utente non edita mai durante una
+   partita (D-022). Niente soft-lock per riga.
+5. **D-018 helper field text**: indagare con Cipo perché
    `RECORD_ID()` non gli funziona; nel mentre l'in-memory filter
    (D-007) regge benissimo per 72/48/32 righe per fetch.
-3. **Mirror Gitea homelab** (`origin` GitHub è già a posto). Bassa
-   priorità — utile se vogliamo CI/CD interno via Woodpecker.
-4. **Prossimi step di prodotto** (non MVP): auth, lock & deadline,
-   deploy VPS, eventuale admin panel.
+
+**Priorità bassa — feature grosse successive**
+
+6. **Auth + visibility model** (slice grande, prerequisito hard per
+   D-022 punto 4): scoping delle Prediction Sets per utente loggato;
+   sblocca la "vista altrui" durante gli stage lockati.
+7. **Deploy** — VPS Proxmox + Cloudflare Tunnel.
+8. **Mirror Gitea homelab** (`origin` GitHub è già a posto).
 
 ### Cose ancora aperte con Cipo (non bloccanti)
 
-- Eventuali feedback dopo che proverà l'app via Tailscale (server up
-  su `devbox:3000` o `100.116.245.75:3000`).
-- Slice #3 funziona end-to-end senza modifiche schema lato Airtable.
+- Feedback dal suo test del 28 maggio (lock gironi → calcolo punti →
+  test fasi successive).
+- Specifica "highlight schedina vincitrice" stage 5 — UX nice-to-have,
+  non urgente.
 
 ## Cleanup minori pending (non bloccanti)
 

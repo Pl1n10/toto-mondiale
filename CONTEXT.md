@@ -50,8 +50,10 @@ spesso da mobile.
   il frontend si adatta a quello che trova
 - Lo schema esatto dei campi può cambiare → l'adapter deve isolare
   bene il mapping (vedi `DECISIONS.md` D-005)
-- I pronostici si possono modificare finché non sono lockati (in MVP
-  non c'è ancora gestione del lock; predisposto su `PredictionSet`)
+- I pronostici seguono un **lifecycle a 5 stage** governato da due
+  flag boolean su ogni `Prediction Set` (`Group Predictions Locked?`
+  / `Knockout Predictions Locked?`). Frontend solo legge, mai scrive.
+  Vedi DECISIONS D-022 per la tabella completa.
 
 ## Fuori scope per l'MVP
 

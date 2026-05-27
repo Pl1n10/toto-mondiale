@@ -436,6 +436,69 @@ label, basta toccare il regex in `bracketTopology.ts`.
 
 ---
 
+## D-022 — Lifecycle a 5 stage del torneo + lock per-schedina (read-only frontend)
+
+**Data:** 2026-05-27
+**Stato:** accettata (Cipo + Roberto, sessione 5)
+
+Il ciclo di vita di una schedina si articola in 5 stage. Le transizioni
+sono guidate da due flag boolean **per ogni** `Prediction Set`:
+`Group Predictions Locked?` e `Knockout Predictions Locked?`.
+
+| Stage | Editing gironi | Editing knockout | Visibilità schedine altrui |
+|---|---|---|---|
+| **1 — Pre-gironi** | ✅ aperto | ❌ struttura visibile ma lockata | solo le proprie |
+| **2 — Gironi in corso** (lock #1 ON) | ❌ lockato | ❌ ancora lockata | tutte |
+| **3a — Tra gironi e knockout** (admin compila R32) | ❌ lockato | ❌ ancora lockata | tutte |
+| **3b — Compila knockout** (admin sblocca knockout) | ❌ lockato | ✅ aperto | solo le proprie |
+| **4 — Knockout in corso** (lock #2 ON) | ❌ lockato | ❌ lockato | tutte |
+| **5 — Fine torneo** | ❌ lockato | ❌ lockato | tutte + highlight vincitore |
+
+**Implicazioni applicative.**
+
+1. **Il frontend è solo lettore dei flag**, non li scrive mai. Il
+   flipping è manuale via Airtable nel primo test (28 maggio 2026); in
+   futuro un'Automation Airtable li flipperà automaticamente in base
+   ai timestamp delle partite. Da parte nostra cambia nulla: leggiamo
+   sempre il valore corrente per ogni `Prediction Set`.
+2. **Lock per-schedina, non globale.** Ogni utente può potenzialmente
+   essere in uno stage diverso da un altro (anche se nella pratica
+   l'Automation li flipperà tutti insieme).
+3. **L'utente non edita mai durante una partita** → la decisione
+   pendente sull'UX "Played" (singola row read-only se
+   `Match Status = Played`) **decade**: coperta dal lock globale di
+   stage. Niente soft-lock per partita.
+4. **Visibility model dipende dallo stage**: durante stage di editing
+   (1 e 3b) l'utente vede solo le proprie schedine; durante stage
+   lockati (2, 3a, 4, 5) vede tutte. Prerequisito hard:
+   [[auth-scoping-per-user]] (oggi `DEBUG_PREDICTION_SET_ID` finge il
+   single-user — bisogna passare a un layer auth vero prima che il
+   visibility model abbia senso).
+5. **Stage 3a (admin riempie R32)** non richiede UI dedicata da parte
+   nostra: Cipo compila i 16 R32 direttamente in Airtable. Quando ha
+   finito flippa `Knockout Predictions Locked?` = false e parte lo
+   stage 3b.
+6. **Stage 5 (fine torneo)**: il "highlight della schedina vincitrice"
+   è UX nice-to-have, dipende dal campo `Is Official World Cup Winner?`
+   su Teams + score finale. Si vedrà.
+
+**Roadmap di implementazione del lock** (in ordine):
+
+- (a) **Read-only mode lato frontend** quando un flag è `true`: tutti
+  i pill diventano `disabled`, la SaveBar è nascosta. È la slice
+  minima che serve a Cipo per il test del 28 maggio.
+- (b) **Defense-in-depth server-side**: la server action rifiuta
+  payload per un Prediction Set lockato (re-fetch del flag prima del
+  PATCH). Slice successiva, non prerequisito per (a).
+- (c) **Auth + visibility model**: la "vista altrui" da abilitare in
+  stage lockati richiede prima auth reale. Slice grande.
+
+**Naming.** Per evitare collisione con il `Phase` del knockout
+(R32 / R16 / ...) ci riferiamo al lifecycle come **stage** nel codice
+e nelle doc. Vedi VOCABULARY [[tournament-stage]].
+
+---
+
 ## D-021 — Knockout UX: cascata invalidata + save check completezza
 
 **Data:** 2026-05-27
