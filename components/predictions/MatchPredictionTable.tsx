@@ -21,11 +21,16 @@ interface DraftRow {
 interface Props {
   predictionSetId: string;
   predictions: GroupMatchPrediction[];
+  readOnly?: boolean;
 }
 
 const RESULT_OPTIONS: ReadonlyArray<GroupMatchResult> = ['1', 'X', '2'];
 
-export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
+export function MatchPredictionTable({
+  predictionSetId,
+  predictions,
+  readOnly = false,
+}: Props) {
   const [serverState, setServerState] = useState(
     () => new Map(predictions.map((p) => [p.id, p] as const)),
   );
@@ -221,7 +226,8 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
                       >
                         {RESULT_OPTIONS.map((opt) => {
                           const selected = d.result === opt;
-                          const base = 'w-10 px-2 py-1 text-sm font-medium transition';
+                          const base =
+                            'w-10 px-2 py-1 text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed';
                           const cls = selected
                             ? d.status === 'error'
                               ? `${base} bg-red-500 text-white`
@@ -235,6 +241,7 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
                               type="button"
                               role="radio"
                               aria-checked={selected}
+                              disabled={readOnly || d.status === 'saving'}
                               className={cls}
                               onClick={() => updateCell(p.id, opt)}
                             >
@@ -253,12 +260,14 @@ export function MatchPredictionTable({ predictionSetId, predictions }: Props) {
         </section>
       ))}
 
-      <SaveBar
-        dirtyCount={dirtyCount}
-        isSaving={isPending}
-        onSave={onSave}
-        message={message}
-      />
+      {!readOnly && (
+        <SaveBar
+          dirtyCount={dirtyCount}
+          isSaving={isPending}
+          onSave={onSave}
+          message={message}
+        />
+      )}
     </div>
   );
 }

@@ -2,7 +2,9 @@ import Link from 'next/link';
 
 import { GroupOrderTable } from '@/components/predictions/GroupOrderTable';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { LockBanner } from '@/components/ui/LockBanner';
 import { fetchGroupOrderPredictions } from '@/lib/airtable/groupOrderPredictions';
+import { fetchPredictionSet } from '@/lib/airtable/predictionSets';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +14,14 @@ interface PageProps {
 
 export default async function GroupOrderPage({ params }: PageProps) {
   let predictions;
+  let locked = false;
   try {
-    predictions = await fetchGroupOrderPredictions(params.id);
+    const [set, list] = await Promise.all([
+      fetchPredictionSet(params.id),
+      fetchGroupOrderPredictions(params.id),
+    ]);
+    predictions = list;
+    locked = set.groupPredictionsLocked === true;
   } catch (err) {
     return (
       <main className="mx-auto max-w-4xl px-4 py-6">
@@ -40,7 +48,12 @@ export default async function GroupOrderPage({ params }: PageProps) {
         </p>
       </header>
 
-      <GroupOrderTable predictionSetId={params.id} predictions={predictions} />
+      {locked && <LockBanner />}
+      <GroupOrderTable
+        predictionSetId={params.id}
+        predictions={predictions}
+        readOnly={locked}
+      />
     </main>
   );
 }

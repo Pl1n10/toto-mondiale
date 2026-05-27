@@ -34,6 +34,7 @@ interface Props {
   matches: KnockoutMatch[];
   /** Plain object so React server→client serialization works. */
   teamNames: Record<RecordId, string>;
+  readOnly?: boolean;
 }
 
 // Round headers, in display order. Keys match the `Phase` single-select.
@@ -109,6 +110,7 @@ export function KnockoutTable({
   predictions,
   matches,
   teamNames,
+  readOnly = false,
 }: Props) {
   const topology = useMemo(() => parseBracketTopology(matches), [matches]);
 
@@ -357,7 +359,7 @@ export function KnockoutTable({
                   if (d.missing) return 'Scelta mancante';
                   return d.status;
                 })();
-                const disabled = d.status === 'saving';
+                const disabled = readOnly || d.status === 'saving';
 
                 return (
                   <li
@@ -423,12 +425,14 @@ export function KnockoutTable({
         );
       })}
 
-      <SaveBar
-        dirtyCount={dirtyCount}
-        isSaving={isPending}
-        onSave={onSave}
-        message={message}
-      />
+      {!readOnly && (
+        <SaveBar
+          dirtyCount={dirtyCount}
+          isSaving={isPending}
+          onSave={onSave}
+          message={message}
+        />
+      )}
     </div>
   );
 }

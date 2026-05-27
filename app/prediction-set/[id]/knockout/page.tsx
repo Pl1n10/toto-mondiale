@@ -2,8 +2,10 @@ import Link from 'next/link';
 
 import { KnockoutTable } from '@/components/predictions/KnockoutTable';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { LockBanner } from '@/components/ui/LockBanner';
 import { fetchKnockoutMatches } from '@/lib/airtable/knockoutMatches';
 import { fetchKnockoutPredictions } from '@/lib/airtable/knockoutPredictions';
+import { fetchPredictionSet } from '@/lib/airtable/predictionSets';
 import { fetchTeamsNameMap } from '@/lib/airtable/teams';
 import type { RecordId } from '@/types/domain';
 
@@ -17,12 +19,18 @@ export default async function KnockoutPage({ params }: PageProps) {
   let predictions;
   let matches;
   let teamsMap: Map<RecordId, string>;
+  let locked = false;
   try {
-    [predictions, matches, teamsMap] = await Promise.all([
+    const [set, p, m, t] = await Promise.all([
+      fetchPredictionSet(params.id),
       fetchKnockoutPredictions(params.id),
       fetchKnockoutMatches(),
       fetchTeamsNameMap(),
     ]);
+    predictions = p;
+    matches = m;
+    teamsMap = t;
+    locked = set.knockoutPredictionsLocked === true;
   } catch (err) {
     return (
       <main className="mx-auto max-w-4xl px-4 py-6">
@@ -52,11 +60,13 @@ export default async function KnockoutPage({ params }: PageProps) {
         </p>
       </header>
 
+      {locked && <LockBanner />}
       <KnockoutTable
         predictionSetId={params.id}
         predictions={predictions}
         matches={matches}
         teamNames={teamNames}
+        readOnly={locked}
       />
     </main>
   );

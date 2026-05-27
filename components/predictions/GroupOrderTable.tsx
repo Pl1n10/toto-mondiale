@@ -17,11 +17,16 @@ interface DraftRow {
 interface Props {
   predictionSetId: string;
   predictions: GroupOrderPrediction[];
+  readOnly?: boolean;
 }
 
 const RANK_OPTIONS = [1, 2, 3, 4] as const;
 
-export function GroupOrderTable({ predictionSetId, predictions }: Props) {
+export function GroupOrderTable({
+  predictionSetId,
+  predictions,
+  readOnly = false,
+}: Props) {
   const [serverState, setServerState] = useState(
     () => new Map(predictions.map((p) => [p.id, p] as const)),
   );
@@ -228,7 +233,7 @@ export function GroupOrderTable({ predictionSetId, predictions }: Props) {
                 const tooltip = isConflict
                   ? `Duplicate rank ${d.rank} in ${p.group}`
                   : d.errorMessage ?? effectiveStatus;
-                const disabled = d.status === 'saving';
+                const disabled = readOnly || d.status === 'saving';
                 return (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="py-1">
@@ -280,13 +285,15 @@ export function GroupOrderTable({ predictionSetId, predictions }: Props) {
         </section>
       ))}
 
-      <SaveBar
-        dirtyCount={dirtyCount}
-        isSaving={isPending}
-        onSave={onSave}
-        message={visibleMessage}
-        saveDisabled={conflictIds.size > 0}
-      />
+      {!readOnly && (
+        <SaveBar
+          dirtyCount={dirtyCount}
+          isSaving={isPending}
+          onSave={onSave}
+          message={visibleMessage}
+          saveDisabled={conflictIds.size > 0}
+        />
+      )}
     </div>
   );
 }

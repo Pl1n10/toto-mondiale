@@ -12,17 +12,15 @@ client-side con dot ambra e banner di errore in italiano.
 
 - **Branch:** `main`
 - **Ultimi commit:**
+  - `f93be96` Docs: capture 5-stage tournament lifecycle spec from Cipo
+  - `2df48db` Bind dev server to 0.0.0.0 so Tailscale clients can reach it
+  - `66c4760` Docs: record GitHub origin setup in HANDOFF
+  - `09be5e5` Docs: full sync at end of session 5 (slice #3 closed end-to-end)
   - `769065f` Add Knockout slice with cascade + save completeness check (slice #3)
-  - `e98ab33` Docs: confirm knockout UX decisions, add save completeness check
-  - `c2ace04` Docs: capture Cipo's knockout reply + Roberto's one-shot clarification
-  - `bf0fbda` Docs sync before slice #3: lessons learned + Cipo knockout question
-  - `c4330f8` Add Group Order editing UI with duplicate-rank guard (slice #2)
-- **Working tree:** clean dopo il commit di slice #3 + commit di doc
-  sync di fine sessione 5 (in atto al momento di scrivere queste righe).
+- **Working tree:** clean (sessione 5 + slice #4 chiusa).
 - **Remote:** `origin` su `git@github.com:Pl1n10/toto-mondiale.git`
-  (privato, branch `main` tracking). Configurato in sessione 5 via
-  playbook `~/projects/minion/playbooks/git-setup.md`. Mirror Gitea
-  homelab ancora pending — bassa priorità.
+  (privato, branch `main` tracking). Mirror Gitea homelab ancora
+  pending — bassa priorità.
 
 ## Cosa è verde end-to-end
 
@@ -85,6 +83,23 @@ client-side con dot ambra e banner di errore in italiano.
   ricompilato tutto → "Saved 14 predictions" → "No changes" ✓.
   PATCH reale verificato su Airtable. Slice #3 chiusa definitivamente.
 
+### Slice #4 — Lock read-only ✅
+
+- Le 3 pagine di editing leggono i flag `Group Predictions Locked?` /
+  `Knockout Predictions Locked?` dal `Prediction Set` (fetch in
+  parallelo con le predictions) e propagano `readOnly: boolean` ai
+  componenti tabella.
+- Quando un flag è `true`: banner `<LockBanner />` giallo in cima
+  ("Schedina lockata — modifiche disabilitate"), tutti i pill
+  `disabled`, SaveBar **nascosta**. Save in JS è ulteriormente bloccato
+  dal fatto che il bottone non esiste; la server action resta
+  vulnerabile a richieste arbitrarie — defense-in-depth server-side è
+  step (b) del rollout D-022, da fare nella prossima slice.
+- Smoke test verificato: group flag locked → group-matches +
+  group-order in read-only, knockout invariato (e viceversa). I due
+  flag sono indipendenti come da D-022.
+- Slice pronta per il test di Cipo del 28 maggio 2026.
+
 ### Lessons learned sessione 5
 
 1. **Probe Airtable: SEMPRE con paginazione.** Il probe iniziale aveva
@@ -139,38 +154,31 @@ in `AIRTABLE_INFO_KNOCKOUT.md` → sezione "Risposta di Cipo").
 
 ### Cosa fare nella prossima sessione
 
-L'MVP delle 3 slice è chiuso. La specifica del **lifecycle a 5 stage**
-(D-022) è arrivata da Cipo in sessione 5 e definisce la prossima
-roadmap. Cipo testa il lock dei gironi **domani 28 maggio 2026**.
+Slice #4 (lock read-only frontend) chiusa in sessione 5: Cipo può
+testare domani 28 maggio senza rischio che qualcuno editi schedine
+lockate dalla UI.
 
-**Priorità alta — slice #4 "Lock read-only" (per il test del 28 maggio)**
+**Priorità alta — defense-in-depth server-side del lock**
 
-1. Le 3 pagine di editing devono **leggere il flag corrispondente** dal
-   `Prediction Set` e passare un `readOnly: boolean` al componente:
-   - `/group-matches` → legge `groupPredictionsLocked`
-   - `/group-order` → legge `groupPredictionsLocked`
-   - `/knockout` → legge `knockoutPredictionsLocked`
-2. Quando `readOnly = true`: tutte le pill `disabled`, SaveBar nascosta
-   o mostra "Schedina lockata", banner informativo in cima.
-3. **Defense-in-depth server-side** opzionale: la server action
-   ri-fetcha il flag prima del PATCH e rifiuta se lockato. Slice
-   successiva, non bloccante per il test del 28.
+1. La server action `saveGroupMatch*` / `saveGroupOrder*` /
+   `saveKnockout*` deve ri-fetchare il `PredictionSet` prima del PATCH
+   e rifiutare con `SaveResult.ok=false, error="Prediction set lockato"`
+   se il flag corrispondente è `true`. Step (b) di D-022. Slice
+   piccola (~15-20 min, una funzione utility shared + 3 wiring).
 
-**Priorità media — decisioni di prodotto rimaste**
+**Priorità media — decisioni / cleanup**
 
-4. **UX "Played"** — **decade**. L'utente non edita mai durante una
-   partita (D-022). Niente soft-lock per riga.
-5. **D-018 helper field text**: indagare con Cipo perché
+2. **D-018 helper field text**: indagare con Cipo perché
    `RECORD_ID()` non gli funziona; nel mentre l'in-memory filter
    (D-007) regge benissimo per 72/48/32 righe per fetch.
 
 **Priorità bassa — feature grosse successive**
 
-6. **Auth + visibility model** (slice grande, prerequisito hard per
+3. **Auth + visibility model** (slice grande, prerequisito hard per
    D-022 punto 4): scoping delle Prediction Sets per utente loggato;
    sblocca la "vista altrui" durante gli stage lockati.
-7. **Deploy** — VPS Proxmox + Cloudflare Tunnel.
-8. **Mirror Gitea homelab** (`origin` GitHub è già a posto).
+4. **Deploy** — VPS Proxmox + Cloudflare Tunnel.
+5. **Mirror Gitea homelab** (`origin` GitHub è già a posto).
 
 ### Cose ancora aperte con Cipo (non bloccanti)
 

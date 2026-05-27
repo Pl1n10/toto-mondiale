@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { MatchPredictionTable } from '@/components/predictions/MatchPredictionTable';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { LockBanner } from '@/components/ui/LockBanner';
 import { fetchGroupMatchPredictions } from '@/lib/airtable/groupMatchPredictions';
 import { fetchPredictionSet } from '@/lib/airtable/predictionSets';
 
@@ -33,6 +34,7 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
   let predictions;
   let setName: string | undefined;
   let setNumber: number | undefined;
+  let locked = false;
 
   try {
     const [set, list] = await Promise.all([
@@ -42,6 +44,7 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
     predictions = list;
     setName = set.name;
     setNumber = set.predictionNumber;
+    locked = set.groupPredictionsLocked === true;
   } catch (err) {
     return (
       <ErrorState
@@ -68,9 +71,11 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
           {setNumber != null && ` (#${setNumber})`}
         </p>
       )}
+      {locked && <LockBanner />}
       <MatchPredictionTable
         predictionSetId={predictionSetId}
         predictions={predictions}
+        readOnly={locked}
       />
     </>
   );
