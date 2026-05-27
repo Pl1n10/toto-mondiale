@@ -19,8 +19,10 @@ client-side con dot ambra e banner di errore in italiano.
   - `c4330f8` Add Group Order editing UI with duplicate-rank guard (slice #2)
 - **Working tree:** clean dopo il commit di slice #3 + commit di doc
   sync di fine sessione 5 (in atto al momento di scrivere queste righe).
-- **Remote:** non ancora configurato. Pending: Gitea homelab + GitHub
-  mirror `Pl1n10/toto-mondiale` (privato).
+- **Remote:** `origin` su `git@github.com:Pl1n10/toto-mondiale.git`
+  (privato, branch `main` tracking). Configurato in sessione 5 via
+  playbook `~/projects/minion/playbooks/git-setup.md`. Mirror Gitea
+  homelab ancora pending — bassa priorità.
 
 ## Cosa è verde end-to-end
 
@@ -142,18 +144,17 @@ prodotto, non più feature core:
 
 1. **Risposta a Cipo** + invito a provare l'app via Tailscale
    (server già su dalla devbox).
-2. **Setup remote git** (Gitea homelab + GitHub mirror
-   `Pl1n10/toto-mondiale` privato). Identità `Pl1n10` /
-   `robnovara@gmail.com`.
-3. **Dev script `-H 0.0.0.0`** in `package.json` (modifica banale per
+2. **Dev script `-H 0.0.0.0`** in `package.json` (modifica banale per
    evitare di passarlo a mano ogni volta sotto Tailscale).
-4. **UX "Played"**: se `Match Status = Played` su una partita, l'utente
+3. **UX "Played"**: se `Match Status = Played` su una partita, l'utente
    può ancora modificare il proprio `Predicted Result`? Default oggi
    sì; da decidere prima del torneo reale (probabilmente: no, ma utile
    anche un soft-lock visivo).
-5. **D-018 helper field text**: indagare con Cipo perché
+4. **D-018 helper field text**: indagare con Cipo perché
    `RECORD_ID()` non gli funziona; nel mentre l'in-memory filter
    (D-007) regge benissimo per 72/48/32 righe per fetch.
+5. **Mirror Gitea homelab** (`origin` GitHub è già a posto). Bassa
+   priorità — utile se vogliamo CI/CD interno via Woodpecker.
 6. **Prossimi step di prodotto** (non MVP): auth, lock & deadline,
    deploy VPS, eventuale admin panel.
 
