@@ -2,6 +2,7 @@ import 'server-only';
 
 import { listAllRecords, updateRecordsInBatches } from './client';
 import {
+  GROUP_FIELDS,
   GROUP_ORDER_PREDICTION_FIELDS,
   GROUP_ORDER_PREDICTION_WRITABLE_FIELDS,
   getAirtableEnv,
@@ -14,6 +15,8 @@ import type {
   GroupOrderPrediction,
   GroupOrderPredictionUpdate,
 } from '@/types/domain';
+
+const RECORD_ID = /^rec[A-Za-z0-9]+$/;
 
 // Skeleton — full editing UI and validation come after the Group Match slice.
 
@@ -37,10 +40,28 @@ export async function fetchGroupOrderPredictions(
       (a, b) => a.group.localeCompare(b.group) || a.teamName.localeCompare(b.teamName),
     );
   }
-  const records = await listAllRecords(tableRef('groupOrderPredictions'));
+  // Fetch the Groups table alongside the predictions so we can resolve the
+  // linked-record id stored in `Group Name` back into "Group A".."Group L".
+  // Group Match Predictions already do the same enrichment; without it on
+  // this side the unified page can't merge the two halves by group key.
+  const [records, groupRecords] = await Promise.all([
+    listAllRecords(tableRef('groupOrderPredictions')),
+    listAllRecords(tableRef('groups'), { fields: [GROUP_FIELDS.groupName] }),
+  ]);
+  const groupNameById = new Map<string, string>();
+  for (const r of groupRecords) {
+    const name = r.fields[GROUP_FIELDS.groupName];
+    if (typeof name === 'string') groupNameById.set(r.id, name);
+  }
   return records
     .map(mapGroupOrderPrediction)
     .filter((r) => r.predictionSetId === predictionSetId)
+    .map((r) => ({
+      ...r,
+      group: RECORD_ID.test(r.group)
+        ? groupNameById.get(r.group) ?? r.group
+        : r.group,
+    }))
     .sort((a, b) => a.group.localeCompare(b.group) || a.teamName.localeCompare(b.teamName));
 }
 
