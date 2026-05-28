@@ -157,15 +157,20 @@ export function KnockoutTable({
     return n;
   }, [drafts]);
 
-  // Completeness is computed over the predictions actually fetched, not the
-  // 32-row theoretical bracket: if Airtable's automation produced fewer rows
-  // for a prediction set there is no UI affordance to fill those gaps.
-  const totalToFill = drafts.size;
-  const incompleteCount = useMemo(() => {
-    let n = 0;
-    for (const [, d] of drafts) if (d.winnerTeamId == null) n++;
-    return n;
-  }, [drafts]);
+  // Earlier rounds (R32 → SF) are already self-guarded by "Complete previous
+  // round" pills, so they can't be silently skipped. Final and Third Place
+  // have no upstream cascade gate, so we surface a confirm dialog at save
+  // time if either is still empty (option C, slice #7c).
+  const FINAL_PHASES = ['05 - Third Place', '06 - Final'] as const;
+  const finalsMissingMatchNumbers = useMemo(() => {
+    const out: number[] = [];
+    for (const km of matches) {
+      if (!FINAL_PHASES.includes(km.phase as (typeof FINAL_PHASES)[number])) continue;
+      const d = drafts.get(km.matchNumber);
+      if (!d || d.winnerTeamId == null) out.push(km.matchNumber);
+    }
+    return out;
+  }, [matches, drafts]);
 
   function predictionIdFor(matchNumber: number): RecordId | undefined {
     for (const p of serverState.values()) {
@@ -208,30 +213,31 @@ export function KnockoutTable({
   function onSave() {
     setMessage(null);
 
-    if (incompleteCount > 0) {
-      // Mark every still-empty row so the amber dot signals where to look.
-      setDrafts((prev) => {
-        const next = new Map(prev);
-        for (const km of matches) {
-          const d = next.get(km.matchNumber);
-          if (!d) continue;
-          if (d.winnerTeamId == null) {
-            next.set(km.matchNumber, { ...d, missing: true });
-          }
-        }
-        return next;
-      });
-      setMessage({
-        kind: 'error',
-        text: `Attenzione!!! Mancano delle squadre; prego ricontrollare il tabellone e inserire le mancanti. Grazie. (Mancano ${incompleteCount} scelt${incompleteCount === 1 ? 'a' : 'e'} su ${totalToFill}.)`,
-      });
-      return;
-    }
-
     const valid = collectChanges();
     if (valid.length === 0) {
       setMessage({ kind: 'info', text: 'No changes to save.' });
       return;
+    }
+
+    // Option C (slice #7c): incremental save is allowed, but if Final or
+    // Third Place are still empty we warn first. Mark them with the amber
+    // "missing" dot so the user can spot the gap before confirming.
+    if (finalsMissingMatchNumbers.length > 0) {
+      setDrafts((prev) => {
+        const next = new Map(prev);
+        for (const mn of finalsMissingMatchNumbers) {
+          const d = next.get(mn);
+          if (d) next.set(mn, { ...d, missing: true });
+        }
+        return next;
+      });
+      const labels = finalsMissingMatchNumbers
+        .map((mn) => matches.find((km) => km.matchNumber === mn)?.matchName ?? `match ${mn}`)
+        .join(', ');
+      const proceed = window.confirm(
+        `Mancano scelte cruciali: ${labels}.\n\nSalvare comunque la bozza?`,
+      );
+      if (!proceed) return;
     }
 
     setDrafts((prev) => {

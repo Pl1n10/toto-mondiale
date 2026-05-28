@@ -1,5 +1,11 @@
 # HANDOFF.md — Toto Mondiale
 
+**Stato al 2026-05-28 sessione 6.** Slice #7 (pagina unificata gruppi
++ completeness check opzione C) chiusa code-side, smoke HTTP verde
+contro Airtable reale. Save end-to-end demandato a Cipo per il test
+del 28 maggio. Le vecchie pagine `/group-matches` e `/group-order`
+sono ancora vive come fallback finché Cipo non valida.
+
 **Stato al 2026-05-27 fine sessione 5.** Tutte e tre le slice (Group
 Match 1/X/2, Group Order 1·2·3·4, Knockout con cascata) chiuse
 end-to-end contro Airtable reale. La sessione 5 ha sbloccato slice #3
@@ -12,12 +18,12 @@ client-side con dot ambra e banner di errore in italiano.
 
 - **Branch:** `main`
 - **Ultimi commit:**
+  - `e9621b8` Docs: reflect slices #4 and #5 (lock read-only + server-side guard)
+  - `8974967` Add slice #5: server-side lock guard on every save action
   - `b4f5e1f` Add slice #4: read-only mode when the prediction set is locked
   - `f93be96` Docs: capture 5-stage tournament lifecycle spec from Cipo
   - `2df48db` Bind dev server to 0.0.0.0 so Tailscale clients can reach it
-  - `66c4760` Docs: record GitHub origin setup in HANDOFF
-  - `09be5e5` Docs: full sync at end of session 5 (slice #3 closed end-to-end)
-- **Working tree:** clean (sessione 5 + slice #4 + slice #5 chiuse).
+- **Working tree:** slice #7 unstaged (4 file nuovi/edit, vedi sotto).
 - **Remote:** `origin` su `git@github.com:Pl1n10/toto-mondiale.git`
   (privato, branch `main` tracking). Mirror Gitea homelab ancora
   pending — bassa priorità.
@@ -96,6 +102,46 @@ client-side con dot ambra e banner di errore in italiano.
   group-order in read-only, knockout invariato (e viceversa). I due
   flag sono indipendenti come da D-022.
 - Slice pronta per il test di Cipo del 28 maggio 2026.
+
+### Slice #7 — Unified Group page + completeness check opzione C ✅
+
+- **Triggered da Cipo (sessione 6):** flippare tra `/group-matches` e
+  `/group-order` per ricordarsi chi vince quante partite era scomodo.
+  Soluzione: pagina unificata che per ogni gruppo mostra prima i 6
+  match con 1/X/2, poi le 4 squadre con pill 1·2·3·4. UX-wise: vedi i
+  segni e ragioni sulle posizioni nella stessa schermata.
+- **Route:** `/prediction-set/[id]/groups` (nuova). Vecchie
+  `/group-matches` e `/group-order` etichettate "(legacy)" nel
+  dashboard `/prediction-set/[id]/page.tsx`. Resteranno vive finché
+  Cipo non valida la nuova; dopo si cancellano.
+- **Server action:** `saveUnifiedGroupPredictions` in
+  `app/prediction-set/[id]/groups/actions.ts`. Valida payload (Zod,
+  riusa schemas esistenti incluso `superRefine` duplicate-rank),
+  esegue `checkLockGuard(..., 'group')` UNA volta, poi lancia in
+  parallelo i due `update*Batch`. Ritorna `{ matches: BatchUpdateResult,
+  order: BatchUpdateResult }` per gestire partial-failure indipendenti
+  sui due lati.
+- **Component:** `components/predictions/UnifiedGroupTable.tsx`.
+  Tiene due `drafts` separati (match Map e order Map), un solo
+  `dirtyCount`, una sola SaveBar. Conflict guard live per i duplicate
+  rank già presente. `visibleMessage` priorità: conflicts > save
+  message > "Mancano N predictions" (info banner sempre presente
+  quando incompleto).
+- **Completeness check (opzione C):** scelta UX di Cipo confermata da
+  Roberto. Non bloccare il save incrementale — al click di Save, se
+  `missingTotal > 0` parte `window.confirm`:
+  > "Schedina incompleta: mancano N prediction (X partite, Y posizioni).
+  > Salvare comunque la bozza?"
+  Cancel → niente. OK → salva solo il dirty (esattamente come prima).
+- **Knockout completeness:** stesso pattern in `KnockoutTable.tsx`.
+  Il vecchio hard-block (mancano scelte → niente save) è stato
+  sostituito con confirm dialog limitato a Finale + Terzo posto
+  (`05 - Third Place`, `06 - Final`). Gli altri round sono già gated
+  da "Complete previous round" → non serve check esplicito.
+- **Smoke test:** HTTP 200 contro Airtable reale, 12 gruppi render
+  (Group A..L), 120 radiogroup (72 match + 48 order). Knockout HTTP
+  200, 32 match render, 6 fasi visibili. Save end-to-end in browser
+  DEMANDATO A CIPO/Roberto per il test del 28 maggio.
 
 ### Slice #5 — Defense-in-depth server-side del lock ✅
 

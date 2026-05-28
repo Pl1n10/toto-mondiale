@@ -11,19 +11,25 @@ interface PageProps {
 
 const SECTIONS = [
   {
-    href: 'group-matches',
-    title: 'Group match predictions',
-    blurb: '72 matches across 12 groups. Fill predicted scores.',
-  },
-  {
-    href: 'group-order',
-    title: 'Group order predictions',
-    blurb: '48 rows — predict the 1st–4th rank inside each group.',
+    href: 'groups',
+    title: 'Group predictions',
+    blurb:
+      'Pagina unificata: per ogni girone le 6 partite (1/X/2) e l\'ordine 1·2·3·4.',
   },
   {
     href: 'knockout',
     title: 'Knockout predictions',
     blurb: '32 knockout slots. Pick the winner of each tie.',
+  },
+  {
+    href: 'group-matches',
+    title: 'Group match predictions (legacy)',
+    blurb: 'Vecchia pagina solo 1/X/2. Tenuta come fallback durante il test.',
+  },
+  {
+    href: 'group-order',
+    title: 'Group order predictions (legacy)',
+    blurb: 'Vecchia pagina solo posizioni 1·2·3·4. Tenuta come fallback.',
   },
 ];
 
