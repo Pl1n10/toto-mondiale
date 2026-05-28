@@ -12,3 +12,8 @@ out
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Local SQLite DB used for Auth.js sessions/tokens in dev
+# (Prisma writes file:./dev.db relative to CWD, i.e. the repo root)
+/dev.db
+/dev.db-journal
