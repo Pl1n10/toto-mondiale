@@ -1,12 +1,12 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-28 fine sessione 6.** Slice #7 chiusa e
-validata end-to-end da Cipo (test del 28 maggio: Airtable legge
-correttamente e calcola i punti). Pagine legacy `/group-matches`,
-`/group-order` e componenti `MatchPredictionTable`/`GroupOrderTable`
-**rimossi**. Dashboard pulito: solo `Group predictions` (unified) +
-`Knockout predictions`. Bug enrichment del campo `group` sugli order
-predictions (mostrava `recXXX...` invece di `Group A..L`) risolto.
+**Stato al 2026-05-28 fine sessione 6 + slice 8a.** Cipo ha validato
+slice #7 end-to-end; pagine legacy rimosse; partito il lavoro auth
+(slice #8) con lo scaffold di Auth.js v5 + Prisma + SQLite (8a ✅).
+Sotto-slice 8b → 8f ancora da fare. **Bloccanti esterni:** Google
+OAuth Client da creare su GCP (Roberto), account Resend con dominio
+verificato (Roberto), colonna `Email` popolata sulla tabella Users
+di Airtable (Cipo).
 
 **Decisioni chiuse in sessione 6 (riportate da Cipo):**
 
@@ -36,13 +36,12 @@ client-side con dot ambra e banner di errore in italiano.
 
 - **Branch:** `main`
 - **Ultimi commit:**
+  - `3664d18` Add slice #8a: scaffold Auth.js v5 + Prisma + SQLite
+  - `cff1d96` Drop legacy group pages after Cipo validated the unified flow
   - `26fd696` Fix slice #7: enrich group name on order predictions
   - `ec900bd` Add slice #7: unified Group Predictions page + soft completeness check
   - `e9621b8` Docs: reflect slices #4 and #5 (lock read-only + server-side guard)
-  - `8974967` Add slice #5: server-side lock guard on every save action
-  - `b4f5e1f` Add slice #4: read-only mode when the prediction set is locked
-- **Working tree:** cleanup post-validazione unstaged (rm pagine
-  legacy + dashboard + componenti morti + docs).
+- **Working tree:** docs unstaged (CLAUDE.md + HANDOFF.md). Da pushare.
 - **Remote:** `origin` su `git@github.com:Pl1n10/toto-mondiale.git`
   (privato, branch `main` tracking). Mirror Gitea homelab ancora
   pending — bassa priorità.
@@ -121,6 +120,73 @@ client-side con dot ambra e banner di errore in italiano.
   group-order in read-only, knockout invariato (e viceversa). I due
   flag sono indipendenti come da D-022.
 - Slice pronta per il test di Cipo del 28 maggio 2026.
+
+### Slice #8 — Auth Google + Email + visibility model 🟡
+
+Slice grande, decomposta in 6 sotto-step. Triggered da Roberto/Cipo
+fine sessione 6: serve un login per poter applicare il visibility
+model (ognuno vede le sue durante stage unlocked, tutte read-only
+durante stage locked).
+
+**Scelte UX confermate da Roberto (2026-05-28):**
+- Login: **Google OAuth** + **Email magic link** (no password)
+- SMTP per i magic link: **Resend** (free tier 100 mail/giorno)
+- Sessioni: DB-backed via Prisma + SQLite (richiesta dal magic link)
+- Onboarding: **blocca login se l'email non è già nella tabella
+  Users di Airtable** ("non sei invitato — contatta l'admin"). Cipo
+  popola la tabella manualmente per i 20 invitati.
+
+**Stato sotto-slice:**
+
+| # | Step | Stato | Bloccato da |
+|---|---|---|---|
+| 8a | Scaffold Auth.js + Prisma + SQLite, providers vuoti | ✅ | — |
+| 8b | Google OAuth + pagina `/sign-in` | ⏳ | env `AUTH_GOOGLE_*` |
+| 8c | Email magic link via Resend | ⏳ | env `AUTH_RESEND_*` + dominio verificato |
+| 8d | `signIn` callback: lookup Airtable Users, blocca se non presente | ⏳ | colonna `Email` su Users (Cipo) |
+| 8e | Middleware: gating su `/prediction-set/*` | ⏳ | — |
+| 8f | Filtro visibility: only-mine quando unlocked, all-read-only quando locked | ⏳ | — |
+
+**8a (chiusa) — cosa è stato fatto:**
+- Pacchetti installati: `next-auth@5.0.0-beta.31`,
+  `@auth/prisma-adapter@2.11.x`, `prisma@^6`, `@prisma/client@^6`,
+  `resend@^6`. Prisma 7 ha dato problemi col nuovo
+  `prisma.config.ts` flow → pinnato a 6.x stabile.
+- Schema Prisma standard Auth.js (`User` / `Account` / `Session` /
+  `VerificationToken`). Migration `20260528153507_init_auth`
+  applicata, SQLite in `./dev.db` (gitignored).
+- `lib/db.ts` Prisma singleton (HMR-safe).
+- `lib/auth.ts` config: adapter Prisma, `session.strategy = 'database'`
+  (obbligatorio per il magic link), provider list vuota,
+  `pages.signIn = '/sign-in'`.
+- `app/api/auth/[...nextauth]/route.ts` re-exporta `handlers.GET/POST`.
+- `.env.example` aggiornato con AUTH_SECRET / AUTH_GOOGLE_* / AUTH_RESEND_*.
+- `.env.local` ha un AUTH_SECRET dev-only (rigenera in prod).
+- Script `npm run db:migrate` / `db:generate` + `postinstall` su `prisma generate`.
+- Smoke test: `/api/auth/session` → 200 `null`, `/api/auth/providers`
+  → 200 `{}`, build production verde, /groups e /knockout invariati.
+
+**Bloccanti esterni per proseguire con 8b/8c/8d (per Roberto e Cipo):**
+1. **Roberto — Google OAuth Client su GCP:**
+   - Crea progetto su `console.cloud.google.com`
+   - Credentials → Create OAuth client ID → Web application
+   - Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`
+     (+ URL prod quando si arriverà)
+   - Annota `Client ID` + `Client secret` in `.env.local`
+     (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`)
+2. **Roberto — Resend:**
+   - Crea account su `resend.com` (free tier)
+   - Verifica un dominio "from" (es. `noreply@robertonovara.me`)
+   - Annota `AUTH_RESEND_KEY` + `AUTH_RESEND_FROM`
+3. **Cipo — Airtable Users:**
+   - Aggiungi colonna `Email` (single-line text) alla tabella Users
+   - Popola le email dei ~20 invitati
+   - Conferma a Roberto il nome esatto del campo (potrebbe non essere
+     letteralmente "Email")
+
+Quando arrivano (1) e (2), 8b + 8c sono lavoro di codice di una
+sessione. Senza (3), 8d non è testabile end-to-end ma posso
+comunque scaffoldarne la logica.
 
 ### Slice #7 — Unified Group page + completeness check opzione C ✅
 
@@ -297,9 +363,16 @@ auth (D-022 step c), che è grande.
 ## Come verificare lo stato verde
 
 ```bash
-npm run typecheck      # tsc --noEmit
-npm run build          # next build → 5/5 pages OK
-npm run dev -- -H 0.0.0.0   # dev server raggiungibile via Tailscale
+npm run typecheck       # tsc --noEmit
+npm run build           # next build → 6/6 routes OK (incl. /api/auth/[...nextauth])
+npm run dev             # dev server -H 0.0.0.0 (gia' nello script)
+npm run db:migrate      # solo se cambi prisma/schema.prisma
+```
+
+Smoke auth scaffold:
+```bash
+curl http://localhost:3000/api/auth/session     # → null
+curl http://localhost:3000/api/auth/providers   # → {}
 ```
 
 Smoke test runtime già verde (slice #1 e #2 con save end-to-end

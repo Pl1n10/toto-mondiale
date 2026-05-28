@@ -19,6 +19,10 @@ arrivare al client**.
 - Tailwind CSS (no UI kit)
 - Zod per validazione payload
 - `fetch` nativo verso Airtable REST API (nessun SDK)
+- Auth.js v5 (next-auth@beta) + Prisma + SQLite per sessioni/magic-link
+  (slice #8 in corso). Airtable resta il source of truth per le
+  identità "di gioco"; SQLite contiene solo session/token/account.
+- Resend per spedire i magic link (slice #8c)
 - npm (Node 24 ok)
 
 ## Architettura — i 4 layer
@@ -72,6 +76,10 @@ Smoke test rapido senza Airtable: app gira su mock data se le env
 | Server Actions | `app/.../actions.ts` (colocate con la page) |
 | UI riusabile | `components/ui/` |
 | Tabelle predizioni | `components/predictions/` |
+| Auth.js config + provider | `lib/auth.ts` |
+| Prisma client singleton | `lib/db.ts` |
+| Schema sessioni / token | `prisma/schema.prisma` |
+| Auth API handler | `app/api/auth/[...nextauth]/route.ts` |
 
 ## Cosa NON fare in questo repo
 
@@ -86,8 +94,11 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
 - **Mai** introdurre autosave per cella; la UX scelta è save batch
   esplicito (vedi DECISIONS.md)
 - **Mai** committare `.env.local` o token Airtable
-- Niente auth, backups, payments, admin panel finché non esplicitamente
-  richiesto (sono fuori scope per l'MVP)
+- **Mai** committare `dev.db` (SQLite Auth.js, gitignored) o gli
+  `AUTH_*` secrets
+- Niente backups, payments, admin panel finché non esplicitamente
+  richiesto (sono fuori scope per l'MVP). L'auth è invece IN scope
+  con slice #8.
 
 ## Workflow concordato
 
@@ -135,5 +146,14 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    "Schedina incompleta — salvare comunque la bozza?" sia sulla pagina
    unificata che sul knockout (limitata a Finale + Terzo posto, gli
    altri round sono già gated da "Complete previous round").
+8. 🟡 **Auth + visibility model (slice #8)** — IN CORSO. Sotto-slice:
+   - 8a ✅ Scaffold Auth.js v5 + Prisma + SQLite, providers vuoti.
+   - 8b ⏳ Google OAuth provider + pagina `/sign-in`.
+   - 8c ⏳ Email magic link via Resend.
+   - 8d ⏳ `signIn` callback: lookup email su Airtable Users, blocca
+     se non presente.
+   - 8e ⏳ Middleware: gating su `/prediction-set/*`.
+   - 8f ⏳ Filtro server-side per visibility model: vede solo le sue
+     durante unlocked, tutte read-only durante locked.
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.
