@@ -1,10 +1,28 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-28 sessione 6.** Slice #7 (pagina unificata gruppi
-+ completeness check opzione C) chiusa code-side, smoke HTTP verde
-contro Airtable reale. Save end-to-end demandato a Cipo per il test
-del 28 maggio. Le vecchie pagine `/group-matches` e `/group-order`
-sono ancora vive come fallback finché Cipo non valida.
+**Stato al 2026-05-28 fine sessione 6.** Slice #7 chiusa e
+validata end-to-end da Cipo (test del 28 maggio: Airtable legge
+correttamente e calcola i punti). Pagine legacy `/group-matches`,
+`/group-order` e componenti `MatchPredictionTable`/`GroupOrderTable`
+**rimossi**. Dashboard pulito: solo `Group predictions` (unified) +
+`Knockout predictions`. Bug enrichment del campo `group` sugli order
+predictions (mostrava `recXXX...` invece di `Group A..L`) risolto.
+
+**Decisioni chiuse in sessione 6 (riportate da Cipo):**
+
+1. **"Match Status = Played" NON è un lock UX**. È solo un meccanismo
+   Airtable per il conteggio punti: una partita played fa scattare il
+   calcolo punteggi su Airtable per chi ha indovinato; non-played no.
+   L'utente continua a modificare il pronostico fino a che la schedina
+   intera non è bloccata via `Group/Knockout Predictions Locked?`.
+   → Nessuna logica frontend da aggiungere su `Match Status`.
+2. **Modello di visibilità per l'auth (slice futura):**
+   - Stage **unlocked** (compilazione): user vede SOLO le sue schedine
+   - Stage **locked** (torneo iniziato): user vede tutte (read-only su
+     quelle altrui, accesso dal tabellone segna-punti tipo "click su
+     Roberto1 → leggo la sua schedina")
+3. **Highlight schedina vincitrice (stage 5):** prima riga del
+   tabellone segna-punti in verde, le altre in bianco. UX minimal.
 
 **Stato al 2026-05-27 fine sessione 5.** Tutte e tre le slice (Group
 Match 1/X/2, Group Order 1·2·3·4, Knockout con cascata) chiuse
@@ -18,12 +36,13 @@ client-side con dot ambra e banner di errore in italiano.
 
 - **Branch:** `main`
 - **Ultimi commit:**
+  - `26fd696` Fix slice #7: enrich group name on order predictions
+  - `ec900bd` Add slice #7: unified Group Predictions page + soft completeness check
   - `e9621b8` Docs: reflect slices #4 and #5 (lock read-only + server-side guard)
   - `8974967` Add slice #5: server-side lock guard on every save action
   - `b4f5e1f` Add slice #4: read-only mode when the prediction set is locked
-  - `f93be96` Docs: capture 5-stage tournament lifecycle spec from Cipo
-  - `2df48db` Bind dev server to 0.0.0.0 so Tailscale clients can reach it
-- **Working tree:** slice #7 unstaged (4 file nuovi/edit, vedi sotto).
+- **Working tree:** cleanup post-validazione unstaged (rm pagine
+  legacy + dashboard + componenti morti + docs).
 - **Remote:** `origin` su `git@github.com:Pl1n10/toto-mondiale.git`
   (privato, branch `main` tracking). Mirror Gitea homelab ancora
   pending — bassa priorità.
@@ -252,10 +271,9 @@ auth (D-022 step c), che è grande.
 2. **Dev script `-H 0.0.0.0` in `package.json`** — Roberto lavora
    regolarmente via Tailscale, ricordarselo ogni volta non è ideale.
    Modifica banale.
-3. **Decisione UX "Played"** — se `Match Status = Played` su una
-   partita, l'utente può ancora modificare il proprio
-   `Predicted Result`? Default attuale: sì. Da rivalutare prima del
-   torneo reale.
+3. ~~**Decisione UX "Played"**~~ — CHIUSO sessione 6: Played non è
+   un lock UX, è solo per il calcolo punti su Airtable. L'utente
+   modifica fino al lock della fase. Niente da implementare.
 4. **D-018 helper field text** — `RECORD_ID()` non funziona per Cipo,
    ha messo `Prediction Set ID` come single-line text vuoto.
    Indagare con lui quando sarà comodo; nel mentre l'in-memory

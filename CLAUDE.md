@@ -125,14 +125,15 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    per i nomi Team/Group, save end-to-end verde su slice #1, #2, #3.
    PAT deve avere scopes `data.records:read` + `data.records:write`
    (D-019).
-7. ✅ **Unified Group Predictions page (slice #7)** — nuova route
+7. ✅ **Unified Group Predictions page (slice #7)** — route
    `/prediction-set/[id]/groups` che mostra per ogni girone i 6 match
    1/X/2 + le 4 squadre con pill 1·2·3·4, una sola SaveBar che fa
    entrambi i batch PATCH in parallelo (`saveUnifiedGroupPredictions`).
-   Le vecchie `/group-matches` e `/group-order` restano come fallback.
-   Completeness check opzione C: `window.confirm` "Schedina incompleta
-   — salvare comunque la bozza?" sia sulla pagina unificata che sul
-   knockout (limitata a Finale + Terzo posto, gli altri round sono
-   già gated da "Complete previous round").
+   Validata da Cipo il 2026-05-28: le vecchie `/group-matches` e
+   `/group-order` (+ componenti `MatchPredictionTable`/`GroupOrderTable`)
+   sono state rimosse. Completeness check opzione C: `window.confirm`
+   "Schedina incompleta — salvare comunque la bozza?" sia sulla pagina
+   unificata che sul knockout (limitata a Finale + Terzo posto, gli
+   altri round sono già gated da "Complete previous round").
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.
