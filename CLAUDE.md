@@ -19,10 +19,12 @@ arrivare al client**.
 - Tailwind CSS (no UI kit)
 - Zod per validazione payload
 - `fetch` nativo verso Airtable REST API (nessun SDK)
-- Auth.js v5 (next-auth@beta) + Prisma + SQLite per sessioni/magic-link
-  (slice #8 in corso). Airtable resta il source of truth per le
-  identità "di gioco"; SQLite contiene solo session/token/account.
-- Resend per spedire i magic link (slice #8c)
+- Auth.js v5 (next-auth@beta), **Google OAuth come unico login**,
+  **sessioni JWT (nessun database)**. Airtable resta il source of truth
+  per le identità "di gioco": il login dimostra l'identità (authn), la
+  presenza in Users autorizza (authz, gate 8d). Prisma/SQLite e il
+  magic-link Resend sono stati RIMOSSI il 2026-05-29 (decisione
+  Google-only, vedi HANDOFF).
 - npm (Node 24 ok)
 
 ## Architettura — i 4 layer
@@ -76,9 +78,9 @@ Smoke test rapido senza Airtable: app gira su mock data se le env
 | Server Actions | `app/.../actions.ts` (colocate con la page) |
 | UI riusabile | `components/ui/` |
 | Tabelle predizioni | `components/predictions/` |
-| Auth.js config + provider | `lib/auth.ts` |
-| Prisma client singleton | `lib/db.ts` |
-| Schema sessioni / token | `prisma/schema.prisma` |
+| Auth.js config + provider Google + callback gate/authorized | `lib/auth.ts` |
+| Airtable Users lookup (allowlist 8d) | `lib/airtable/users.ts` |
+| Route gating (`/prediction-set/*`) | `middleware.ts` |
 | Auth API handler | `app/api/auth/[...nextauth]/route.ts` |
 
 ## Cosa NON fare in questo repo
@@ -93,9 +95,10 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
   Airtable); usa `updateRecordsInBatches` che già chunka
 - **Mai** introdurre autosave per cella; la UX scelta è save batch
   esplicito (vedi DECISIONS.md)
-- **Mai** committare `.env.local` o token Airtable
-- **Mai** committare `dev.db` (SQLite Auth.js, gitignored) o gli
-  `AUTH_*` secrets
+- **Mai** committare `.env.local`, token Airtable o gli `AUTH_*` secrets
+- **Mai** reintrodurre un database/adapter (Prisma, SQLite) o il
+  magic-link: l'auth è Google-only con sessioni JWT (decisione
+  2026-05-29). Airtable è l'unico user store.
 - Niente backups, payments, admin panel finché non esplicitamente
   richiesto (sono fuori scope per l'MVP). L'auth è invece IN scope
   con slice #8.
@@ -146,34 +149,41 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    "Schedina incompleta — salvare comunque la bozza?" sia sulla pagina
    unificata che sul knockout (limitata a Finale + Terzo posto, gli
    altri round sono già gated da "Complete previous round").
-8. 🟡 **Auth + visibility model (slice #8)** — IN CORSO. Sotto-slice:
-   - 8a ✅ Scaffold Auth.js v5 + Prisma + SQLite, providers vuoti.
+8. 🟡 **Auth + visibility model (slice #8)** — Google-only, sessioni JWT
+   (revisione 2026-05-29: Prisma/SQLite/Resend rimossi). Sotto-slice:
+   - 8a ✅ Scaffold Auth.js v5 (lo scaffold Prisma/SQLite è poi stato
+     rimosso nella revisione Google-only).
    - 8b ✅ Google OAuth provider + pagina `/sign-in`, login reale
-     verificato in browser (callback → `/dashboard`, User+Account in
-     SQLite).
-   - 8c ⏳ Email magic link via Resend.
+     verificato in browser (callback → `/dashboard`).
+   - ~~8c~~ ❌ **Annullato** — magic link/Resend rimossi (Google-only).
    - 8d ✅ `signIn` callback: lookup email su Airtable Users
      (`lib/airtable/users.ts`), blocca se non presente → redirect
      `/sign-in?error=AccessDenied`. Solo presenza email (no `Active?`).
-   - 8e ⏳ Middleware: gating su `/prediction-set/*`.
+   - 8e ✅ `middleware.ts`: gating su `/prediction-set/*` via callback
+     `authorized` (sessioni JWT → leggibili su Edge, niente DB).
+     Verificato: route protetta senza auth → 307 `/sign-in`.
    - 8f ⏳ Filtro server-side per visibility model: vede solo le sue
      durante unlocked, tutte read-only durante locked.
 9. ⏳ **Dockerize (slice #9)** — `output: 'standalone'` in
-   `next.config`, `Dockerfile` multi-stage, `docker-compose.yml` con
-   volume persistente per il SQLite di prod (`prod.db`) + migrazione
-   Prisma all'avvio. Smoke locale `docker compose up`.
-10. ⏳ **Dominio + Cloudflare (slice #10)** — dominio dedicato (scelta
-    Roberto 2026-05-29), aggiunto a Cloudflare (cambio nameserver),
-    Tunnel creato dal dashboard Zero Trust → tunnel token.
-11. ⏳ **Deploy Hetzner (slice #11)** — VM Hetzner Cloud (Ubuntu 24.04,
-    ~CX22), Docker, compose con due container: app Next.js standalone +
-    `cloudflared`. Esposizione via **Cloudflare Tunnel** (scelta Roberto
-    2026-05-29): nessuna porta aperta sul VPS, TLS gestito da Cloudflare.
+   `next.config`, `Dockerfile` multi-stage. App **stateless** (sessioni
+   JWT, nessun DB): niente volume, niente migrazioni, niente backup.
+   `docker-compose.yml` con due servizi (app + `cloudflared`). Build
+   dell'immagine sulla **devbox** (la e2-micro andrebbe OOM) → push su
+   **GHCR** (`ghcr.io/pl1n10/toto-mondiale`). Smoke `docker compose up`.
+10. ⏳ **Dominio + Cloudflare (slice #10)** — dominio
+    `t0t0m0ndlale.online` (registrato 2026-05-29) → aggiungere a
+    Cloudflare (cambio nameserver), Tunnel dal dashboard Zero Trust →
+    tunnel token.
+11. ⏳ **Deploy GCP (slice #11)** — VM **GCP e2-micro Always Free**
+    (Ubuntu 24.04, regione US), Docker, compose con due container: app
+    Next.js standalone (immagine pullata da GHCR) + `cloudflared`.
+    Esposizione via **Cloudflare Tunnel**: nessuna porta aperta, TLS
+    Cloudflare. Budget alert a 1€. ($300 di free-trial come paracadute
+    per una e2-small in Europa se la micro è tirata.)
     Secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`,
-    `AUTH_RESEND_*`, `AUTH_URL=https://t0t0m0ndlale.online`).
+    `AUTH_URL=https://t0t0m0ndlale.online`).
 12. ⏳ **Wiring prod (slice #12)** — redirect URI prod su GCP
-    (`https://t0t0m0ndlale.online/api/auth/callback/google`), dominio verificato
-    su Resend per il "from", test login end-to-end (Google + magic
-    link) in produzione.
+    (`https://t0t0m0ndlale.online/api/auth/callback/google`) + origin
+    JS, test login Google end-to-end in produzione.
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.

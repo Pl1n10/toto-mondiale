@@ -1,20 +1,51 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-29 sessione 7.** Decisa la strada deploy e aggiunta
-la roadmap #9→#12 (vedi sezione "Roadmap deploy"). **8b + 8d chiusi**:
-provider Google + pagina `/sign-in` (8b, login reale verificato,
-account `robnovara@gmail.com`), gate allowlist Airtable (8d). **Dominio
-dedicato registrato: `t0t0m0ndlale.online`** (placeholder sostituiti in
-tutti i doc). Prossimi step codice **8e (gating route) + 8f (visibility
-model)** — non bloccati. **Bloccanti esterni ancora aperti:**
+**Stato al 2026-05-29 sessione 7.** **Decisione architetturale grossa:
+auth Google-only.** Roberto ha confermato che tutti gli invitati hanno
+un account Google → magic-link/Resend ELIMINATO e con esso tutto lo
+stack Prisma/SQLite (le sessioni sono ora **JWT, stateless**). Questo
+sblocca 8e via middleware Edge banale e rende il deploy stateless.
+**Slice #8 chiuso fino a 8e; resta solo 8f (visibility model).**
+
+**8b + 8d + 8e chiusi**, **8c annullato**. **Dominio registrato:
+`t0t0m0ndlale.online`** (placeholder sostituiti ovunque). **Deploy
+ridisegnato su GCP e2-micro Always Free + GHCR** (scelta Roberto
+2026-05-29, al posto di Hetzner).
+
+**Bloccanti esterni ancora aperti:**
 - Cloudflare: dominio NON ancora aggiunto / nameserver da cambiare
-  (Roberto) → sblocca Tunnel (#10) e la verifica dominio su Resend (8c).
-- 8c (Resend magic link): bloccato da Cloudflare+Resend; per testare in
-  locale si può usare il dominio sandbox `onboarding@resend.dev`.
+  (Roberto) → sblocca Tunnel (#10).
 - Tabella Users di Airtable: oggi **6 righe** popolate (incl.
   `robnovara@gmail.com` e `claudio.cipo23@gmail.com`), quindi 8d è
   testabile end-to-end. Nota: `abe.grillo@gmail.com` è duplicato su due
   righe — innocuo per il gate (presenza-only).
+
+**Refactor Google-only (sessione 7) — cosa è cambiato:**
+- `lib/auth.ts`: rimosso `PrismaAdapter`, `session.strategy = 'jwt'`,
+  restano provider `Google` + callback `signIn` (gate 8d) + nuova
+  callback `authorized` (gate 8e).
+- `middleware.ts` (nuovo): `export { auth as middleware }` +
+  matcher `/prediction-set/:path*`. Verde: route protetta senza auth →
+  **307 → `/sign-in?callbackUrl=...`**; `/dashboard` resta 200.
+- **Rimossi:** `lib/db.ts`, `prisma/` (schema+migration), `.env`,
+  i deps `@auth/prisma-adapter`/`@prisma/client`/`prisma`/`resend`,
+  gli script `db:*`/`postinstall`, le righe `AUTH_RESEND_*` da
+  `.env.example`, le regole SQLite da `.gitignore`. 41 pacchetti via.
+- Verde: typecheck + build (compare `ƒ Middleware`), providers/session
+  curl OK. Test login browser demandato a Roberto.
+
+**8d (chiuso in sessione 7) — cosa è stato fatto:**
+- `lib/airtable/users.ts`: `findUserByEmail` (match in-memory
+  case-insensitive, pattern D-007, ~20 righe) + `isInvitedEmail` che
+  lascia il login aperto quando Airtable non è configurato (dev/mock).
+- `lib/airtable/mappers.ts`: aggiunto `mapUser`.
+- `lib/auth.ts`: callback `signIn` → `isInvitedEmail(user.email)`.
+  `false` → Auth.js redirige a `/sign-in?error=AccessDenied`. Vale per
+  OGNI provider. Regola: **solo presenza email**, `Active?` ignorato.
+- `app/sign-in/page.tsx`: mostra banner rosso "non sei tra gli
+  invitati" su `?error=AccessDenied`.
+- Verde: typecheck + build. Test browser del percorso deny (gmail non
+  in lista) demandato a Roberto.
 
 **8d (chiuso in sessione 7) — cosa è stato fatto:**
 - `lib/airtable/users.ts`: `findUserByEmail` (match in-memory
@@ -202,25 +233,22 @@ durante stage locked).
 
 | # | Step | Stato | Bloccato da |
 |---|---|---|---|
-| 8a | Scaffold Auth.js + Prisma + SQLite, providers vuoti | ✅ | — |
+| 8a | Scaffold Auth.js (lo scaffold Prisma/SQLite poi rimosso) | ✅ | — |
 | 8b | Google OAuth + pagina `/sign-in` | ✅ | — (login reale verificato) |
-| 8c | Email magic link via Resend | ⏳ | env `AUTH_RESEND_*` + **dominio dedicato** verificato su Resend |
+| 8c | ~~Email magic link via Resend~~ | ❌ annullato | Google-only |
 | 8d | `signIn` callback: lookup Airtable Users, blocca se non presente | ✅ | — (6 righe Users, testabile) |
-| 8e | Gating route `/prediction-set/*` | ⏳ | — ⚠️ vedi nota Edge/Prisma |
-| 8f | Filtro visibility: only-mine quando unlocked, all-read-only quando locked | ⏳ | — |
+| 8e | Gating route `/prediction-set/*` (middleware Edge, sessioni JWT) | ✅ | — (307 verificato) |
+| 8f | Filtro visibility: only-mine quando unlocked, all-read-only quando locked | ⏳ | — prossimo step |
 
-**⚠️ Nota tecnica 8e (da decidere a inizio implementazione):** la
-roadmap diceva "middleware". MA usiamo **sessioni database (Prisma +
-SQLite)** e Next 14 esegue il middleware solo su **Edge runtime**, dove
-Prisma non gira → il middleware non può validare la sessione contro il
-DB. Due strade: (a) split-config Auth.js (un `auth.config.ts`
-edge-safe con solo JWT per il middleware) — ma con sessioni DB non
-risolve; (b) **guard server-side in un layout** `app/prediction-set/[id]/
-layout.tsx` che chiama `auth()` e fa `redirect('/sign-in')` se non
-loggato. **Preferenza (b)**: nativa per sessioni DB su Next 14, niente
-problemi Edge. Implementare 8e come layout-guard, non come middleware.
+**Nota 8e (risolta dal refactor Google-only):** il problema "middleware
+Edge non valida sessioni DB Prisma" è SPARITO perché non c'è più un DB —
+le sessioni sono JWT, leggibili su Edge. Quindi 8e è un middleware
+standard Auth.js (`export { auth as middleware }` + matcher), non serve
+il layout-guard.
 
-**8a (chiusa) — cosa è stato fatto:**
+**8a (chiusa) — cosa è stato fatto** ⚠️ *SEZIONE STORICA: lo scaffold
+Prisma/SQLite/Resend qui sotto è stato RIMOSSO nella revisione
+Google-only del 2026-05-29. Tenuta solo come archivio.*
 - Pacchetti installati: `next-auth@5.0.0-beta.31`,
   `@auth/prisma-adapter@2.11.x`, `prisma@^6`, `@prisma/client@^6`,
   `resend@^6`. Prisma 7 ha dato problemi col nuovo
@@ -281,22 +309,29 @@ comunque scaffoldarne la logica.
 
 ## Roadmap deploy (slice #9 → #12)
 
-Architettura target: VM **Hetzner Cloud** (Ubuntu 24.04, ~CX22) con
-**Docker Compose**, due container: app Next.js standalone +
-`cloudflared`. **Cloudflare Tunnel** come ingress → nessuna porta
-aperta sul VPS, TLS gestito da Cloudflare. SQLite (`prod.db`) su volume
-persistente; per ~20 utenti basta e avanza, backup = copia del file.
+Architettura target (ridisegnata 2026-05-29): VM **GCP e2-micro Always
+Free** (Ubuntu 24.04, regione US) con **Docker Compose**, due container:
+app Next.js standalone (immagine pullata da **GHCR**) + `cloudflared`.
+**Cloudflare Tunnel** come ingress → nessuna porta aperta, TLS
+Cloudflare. **App stateless** (sessioni JWT, niente DB): niente volume,
+niente migrazioni, niente backup. L'immagine si builda sulla **devbox**
+(la e2-micro a 1 GB andrebbe OOM su `next build`) e si pusha su GHCR;
+la VM la scarica già pronta.
 
 | # | Step | Stato | Bloccato da |
 |---|---|---|---|
-| 9  | Dockerize: `output:'standalone'`, Dockerfile multi-stage, compose con volume SQLite + migrate all'avvio, smoke `docker compose up` | ⏳ | — |
-| 10 | Dominio dedicato → Cloudflare (nameserver) → Tunnel su Zero Trust → tunnel token | ⏳ | Roberto registra dominio |
-| 11 | VM Hetzner, Docker, deploy compose + `cloudflared`, secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_RESEND_*`, `AUTH_URL=https://t0t0m0ndlale.online`) | ⏳ | slice #9, #10 |
-| 12 | Redirect URI prod su GCP, dominio verificato su Resend, test login end-to-end (Google + magic link) in prod | ⏳ | slice #11, env Resend |
+| 9  | Dockerize: `output:'standalone'`, Dockerfile multi-stage, compose (app + `cloudflared`), build su devbox → push GHCR, smoke `docker compose up` | ⏳ | — |
+| 10 | `t0t0m0ndlale.online` → Cloudflare (nameserver) → Tunnel su Zero Trust → tunnel token | ⏳ | Roberto aggiunge a Cloudflare |
+| 11 | VM GCP e2-micro Always Free, Docker, pull immagine GHCR + deploy compose + `cloudflared`, secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_URL=https://t0t0m0ndlale.online`), budget alert 1€ | ⏳ | slice #9, #10 |
+| 12 | Redirect URI prod + origin JS su GCP OAuth, test login Google end-to-end in prod | ⏳ | slice #11 |
 
-**Nota ordine:** il dominio dedicato (slice #10) sblocca anche Resend
-(8c). Conviene registrarlo presto in parallelo a 8b, così l'auth si
-completa e si testa in locale prima del deploy.
+**Note:**
+- e2-micro = 1 GB RAM: runtime OK per ~20 utenti, ma build solo su
+  devbox. $300 di free-trial come paracadute per una e2-small in Europa
+  se la micro è tirata o la latenza US dà fastidio.
+- GHCR scelto da Roberto per impararlo: `ghcr.io/pl1n10/toto-mondiale`,
+  auth via Personal Access Token (scope `write:packages`).
+- Niente più Resend nel deploy (magic link annullato).
 
 ### Slice #7 — Unified Group page + completeness check opzione C ✅
 

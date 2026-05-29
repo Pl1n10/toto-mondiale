@@ -12,16 +12,3 @@ out
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
 *.tsbuildinfo
-
-# Local SQLite DB used for Auth.js sessions/tokens in dev.
-# Prisma 6 resolves file:./dev.db relative to the schema dir (prisma/),
-# not the repo root — so the real file lives in prisma/. Ignore both
-# locations plus the SQLite journal/WAL sidecars.
-/dev.db
-/dev.db-journal
-/prisma/dev.db
-/prisma/dev.db-journal
-/prisma/*.db
-/prisma/*.db-journal
-/prisma/*.db-wal
-/prisma/*.db-shm
