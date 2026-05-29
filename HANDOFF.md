@@ -1,13 +1,34 @@
 # HANDOFF.md — Toto Mondiale
 
 **Stato al 2026-05-29 sessione 7.** Decisa la strada deploy e aggiunta
-la roadmap #9→#12 (vedi sezione "Roadmap deploy"). **8b chiuso**:
-provider Google + pagina `/sign-in`, login reale verificato in browser
-(account `robnovara@gmail.com`). Prossimo step **8c (Resend magic
-link)**, bloccato dal dominio dedicato. **Bloccanti esterni ancora
-aperti:** dominio dedicato da registrare → sblocca Resend per 8c
-(Roberto), colonna `Email` popolata sulla tabella Users di Airtable
-(Cipo, oggi 1/4).
+la roadmap #9→#12 (vedi sezione "Roadmap deploy"). **8b + 8d chiusi**:
+provider Google + pagina `/sign-in` (8b, login reale verificato,
+account `robnovara@gmail.com`), gate allowlist Airtable (8d). **Dominio
+dedicato registrato: `t0t0m0ndlale.online`** (placeholder sostituiti in
+tutti i doc). Prossimi step codice **8e (gating route) + 8f (visibility
+model)** — non bloccati. **Bloccanti esterni ancora aperti:**
+- Cloudflare: dominio NON ancora aggiunto / nameserver da cambiare
+  (Roberto) → sblocca Tunnel (#10) e la verifica dominio su Resend (8c).
+- 8c (Resend magic link): bloccato da Cloudflare+Resend; per testare in
+  locale si può usare il dominio sandbox `onboarding@resend.dev`.
+- Tabella Users di Airtable: oggi **6 righe** popolate (incl.
+  `robnovara@gmail.com` e `claudio.cipo23@gmail.com`), quindi 8d è
+  testabile end-to-end. Nota: `abe.grillo@gmail.com` è duplicato su due
+  righe — innocuo per il gate (presenza-only).
+
+**8d (chiuso in sessione 7) — cosa è stato fatto:**
+- `lib/airtable/users.ts`: `findUserByEmail` (match in-memory
+  case-insensitive, pattern D-007, ~20 righe) + `isInvitedEmail` che
+  lascia il login aperto quando Airtable non è configurato (dev/mock).
+- `lib/airtable/mappers.ts`: aggiunto `mapUser`.
+- `lib/auth.ts`: callback `signIn` → `isInvitedEmail(user.email)`.
+  `false` aborta prima della persistenza adapter e Auth.js redirige a
+  `/sign-in?error=AccessDenied`. Vale per OGNI provider → gata anche il
+  magic link (8c). Regola: **solo presenza email**, `Active?` ignorato.
+- `app/sign-in/page.tsx`: mostra banner rosso "non sei tra gli
+  invitati" su `?error=AccessDenied`.
+- Verde: typecheck + build. Test browser del percorso deny (gmail non
+  in lista) demandato a Roberto.
 
 **8b (chiuso in sessione 7) — cosa è stato fatto:**
 - `lib/auth.ts`: aggiunto `Google` ai providers (Auth.js v5 legge
@@ -184,9 +205,20 @@ durante stage locked).
 | 8a | Scaffold Auth.js + Prisma + SQLite, providers vuoti | ✅ | — |
 | 8b | Google OAuth + pagina `/sign-in` | ✅ | — (login reale verificato) |
 | 8c | Email magic link via Resend | ⏳ | env `AUTH_RESEND_*` + **dominio dedicato** verificato su Resend |
-| 8d | `signIn` callback: lookup Airtable Users, blocca se non presente | ⏳ | colonna `Email` su Users (Cipo) |
-| 8e | Middleware: gating su `/prediction-set/*` | ⏳ | — |
+| 8d | `signIn` callback: lookup Airtable Users, blocca se non presente | ✅ | — (6 righe Users, testabile) |
+| 8e | Gating route `/prediction-set/*` | ⏳ | — ⚠️ vedi nota Edge/Prisma |
 | 8f | Filtro visibility: only-mine quando unlocked, all-read-only quando locked | ⏳ | — |
+
+**⚠️ Nota tecnica 8e (da decidere a inizio implementazione):** la
+roadmap diceva "middleware". MA usiamo **sessioni database (Prisma +
+SQLite)** e Next 14 esegue il middleware solo su **Edge runtime**, dove
+Prisma non gira → il middleware non può validare la sessione contro il
+DB. Due strade: (a) split-config Auth.js (un `auth.config.ts`
+edge-safe con solo JWT per il middleware) — ma con sessioni DB non
+risolve; (b) **guard server-side in un layout** `app/prediction-set/[id]/
+layout.tsx` che chiama `auth()` e fa `redirect('/sign-in')` se non
+loggato. **Preferenza (b)**: nativa per sessioni DB su Next 14, niente
+problemi Edge. Implementare 8e come layout-guard, non come middleware.
 
 **8a (chiusa) — cosa è stato fatto:**
 - Pacchetti installati: `next-auth@5.0.0-beta.31`,
@@ -243,7 +275,7 @@ comunque scaffoldarne la logica.
    `toto-mondiale-web`.
    - Authorized JavaScript origins: `http://localhost:3000`
    - Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`
-     (in prod si aggiunge `https://<dominio>/api/auth/callback/google` → slice #12)
+     (in prod si aggiunge `https://t0t0m0ndlale.online/api/auth/callback/google` → slice #12)
 4. Copia Client ID + secret in `.env.local` come `AUTH_GOOGLE_ID` /
    `AUTH_GOOGLE_SECRET` (mai in repo).
 
@@ -259,7 +291,7 @@ persistente; per ~20 utenti basta e avanza, backup = copia del file.
 |---|---|---|---|
 | 9  | Dockerize: `output:'standalone'`, Dockerfile multi-stage, compose con volume SQLite + migrate all'avvio, smoke `docker compose up` | ⏳ | — |
 | 10 | Dominio dedicato → Cloudflare (nameserver) → Tunnel su Zero Trust → tunnel token | ⏳ | Roberto registra dominio |
-| 11 | VM Hetzner, Docker, deploy compose + `cloudflared`, secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_RESEND_*`, `AUTH_URL=https://<dominio>`) | ⏳ | slice #9, #10 |
+| 11 | VM Hetzner, Docker, deploy compose + `cloudflared`, secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_RESEND_*`, `AUTH_URL=https://t0t0m0ndlale.online`) | ⏳ | slice #9, #10 |
 | 12 | Redirect URI prod su GCP, dominio verificato su Resend, test login end-to-end (Google + magic link) in prod | ⏳ | slice #11, env Resend |
 
 **Nota ordine:** il dominio dedicato (slice #10) sblocca anche Resend

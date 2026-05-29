@@ -4,6 +4,7 @@ import {
   KNOCKOUT_MATCH_FIELDS,
   KNOCKOUT_PREDICTION_FIELDS,
   PREDICTION_SET_FIELDS,
+  USER_FIELDS,
 } from './config';
 import type { AirtableRecord } from '@/types/airtable';
 import type {
@@ -13,6 +14,7 @@ import type {
   KnockoutMatch,
   KnockoutPrediction,
   PredictionSet,
+  User,
 } from '@/types/domain';
 
 function asGroupMatchResult(value: unknown): GroupMatchResult | null {
@@ -52,6 +54,15 @@ function firstLinkedId(value: unknown): string | undefined {
     return value[0];
   }
   return undefined;
+}
+
+export function mapUser(record: AirtableRecord): User {
+  const f = record.fields;
+  return {
+    id: record.id,
+    name: firstString(f[USER_FIELDS.name]) ?? '',
+    email: firstString(f[USER_FIELDS.email]),
+  };
 }
 
 export function mapPredictionSet(record: AirtableRecord): PredictionSet {

@@ -152,8 +152,9 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
      verificato in browser (callback → `/dashboard`, User+Account in
      SQLite).
    - 8c ⏳ Email magic link via Resend.
-   - 8d ⏳ `signIn` callback: lookup email su Airtable Users, blocca
-     se non presente.
+   - 8d ✅ `signIn` callback: lookup email su Airtable Users
+     (`lib/airtable/users.ts`), blocca se non presente → redirect
+     `/sign-in?error=AccessDenied`. Solo presenza email (no `Active?`).
    - 8e ⏳ Middleware: gating su `/prediction-set/*`.
    - 8f ⏳ Filtro server-side per visibility model: vede solo le sue
      durante unlocked, tutte read-only durante locked.
@@ -169,9 +170,9 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
     `cloudflared`. Esposizione via **Cloudflare Tunnel** (scelta Roberto
     2026-05-29): nessuna porta aperta sul VPS, TLS gestito da Cloudflare.
     Secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`,
-    `AUTH_RESEND_*`, `AUTH_URL=https://<dominio>`).
+    `AUTH_RESEND_*`, `AUTH_URL=https://t0t0m0ndlale.online`).
 12. ⏳ **Wiring prod (slice #12)** — redirect URI prod su GCP
-    (`https://<dominio>/api/auth/callback/google`), dominio verificato
+    (`https://t0t0m0ndlale.online/api/auth/callback/google`), dominio verificato
     su Resend per il "from", test login end-to-end (Google + magic
     link) in produzione.
 
