@@ -155,5 +155,22 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    - 8e ⏳ Middleware: gating su `/prediction-set/*`.
    - 8f ⏳ Filtro server-side per visibility model: vede solo le sue
      durante unlocked, tutte read-only durante locked.
+9. ⏳ **Dockerize (slice #9)** — `output: 'standalone'` in
+   `next.config`, `Dockerfile` multi-stage, `docker-compose.yml` con
+   volume persistente per il SQLite di prod (`prod.db`) + migrazione
+   Prisma all'avvio. Smoke locale `docker compose up`.
+10. ⏳ **Dominio + Cloudflare (slice #10)** — dominio dedicato (scelta
+    Roberto 2026-05-29), aggiunto a Cloudflare (cambio nameserver),
+    Tunnel creato dal dashboard Zero Trust → tunnel token.
+11. ⏳ **Deploy Hetzner (slice #11)** — VM Hetzner Cloud (Ubuntu 24.04,
+    ~CX22), Docker, compose con due container: app Next.js standalone +
+    `cloudflared`. Esposizione via **Cloudflare Tunnel** (scelta Roberto
+    2026-05-29): nessuna porta aperta sul VPS, TLS gestito da Cloudflare.
+    Secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`,
+    `AUTH_RESEND_*`, `AUTH_URL=https://<dominio>`).
+12. ⏳ **Wiring prod (slice #12)** — redirect URI prod su GCP
+    (`https://<dominio>/api/auth/callback/google`), dominio verificato
+    su Resend per il "from", test login end-to-end (Google + magic
+    link) in produzione.
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.

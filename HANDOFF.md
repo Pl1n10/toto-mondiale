@@ -1,12 +1,27 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-28 fine sessione 6 + slice 8a.** Cipo ha validato
-slice #7 end-to-end; pagine legacy rimosse; partito il lavoro auth
-(slice #8) con lo scaffold di Auth.js v5 + Prisma + SQLite (8a ✅).
-Sotto-slice 8b → 8f ancora da fare. **Bloccanti esterni:** Google
-OAuth Client da creare su GCP (Roberto), account Resend con dominio
-verificato (Roberto), colonna `Email` popolata sulla tabella Users
-di Airtable (Cipo).
+**Stato al 2026-05-29 sessione 7 (in apertura).** Decisa la strada
+deploy e aggiunta la roadmap #9→#12 (vedi sezione "Roadmap deploy").
+Si riparte da **8b (Google OAuth)**: Roberto sta creando il progetto
+GCP, appena `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` sono in `.env.local`
+si implementa il provider + pagina `/sign-in`. **Bloccanti esterni
+ancora aperti:** Google OAuth Client (Roberto, in corso), dominio
+dedicato da registrare → sblocca Resend per 8c (Roberto), colonna
+`Email` popolata sulla tabella Users di Airtable (Cipo).
+
+**Decisioni prese in sessione 7 (2026-05-29):**
+
+1. **Account Google dedicato** consigliato per il progetto GCP (owner
+   unico per GCP + Resend + dominio), ma non bloccante.
+2. **OAuth consent screen pubblicato in Production** con soli scope
+   non-sensitive (email/profile/openid) → niente verifica Google,
+   niente lista test-user. Il gating sui ~20 invitati resta l'allowlist
+   Airtable (8d).
+3. **Dominio dedicato** (no sottodominio di robertonovara.me).
+4. **Esposizione via Cloudflare Tunnel** (`cloudflared`), nessuna porta
+   aperta sul VPS Hetzner, TLS gestito da Cloudflare.
+5. **Ordine:** il dominio dedicato sblocca anche Resend (8c). Quindi
+   8b ora → registra dominio → 8c → 8d/8e/8f → deploy #9→#12.
 
 **Decisioni chiuse in sessione 6 (riportate da Cipo):**
 
@@ -141,8 +156,8 @@ durante stage locked).
 | # | Step | Stato | Bloccato da |
 |---|---|---|---|
 | 8a | Scaffold Auth.js + Prisma + SQLite, providers vuoti | ✅ | — |
-| 8b | Google OAuth + pagina `/sign-in` | ⏳ | env `AUTH_GOOGLE_*` |
-| 8c | Email magic link via Resend | ⏳ | env `AUTH_RESEND_*` + dominio verificato |
+| 8b | Google OAuth + pagina `/sign-in` | 🟡 in corso | env `AUTH_GOOGLE_*` (Roberto crea progetto GCP) |
+| 8c | Email magic link via Resend | ⏳ | env `AUTH_RESEND_*` + **dominio dedicato** verificato su Resend |
 | 8d | `signIn` callback: lookup Airtable Users, blocca se non presente | ⏳ | colonna `Email` su Users (Cipo) |
 | 8e | Middleware: gating su `/prediction-set/*` | ⏳ | — |
 | 8f | Filtro visibility: only-mine quando unlocked, all-read-only quando locked | ⏳ | — |
@@ -179,14 +194,51 @@ durante stage locked).
    - Verifica un dominio "from" (es. `noreply@robertonovara.me`)
    - Annota `AUTH_RESEND_KEY` + `AUTH_RESEND_FROM`
 3. **Cipo — Airtable Users:**
-   - Aggiungi colonna `Email` (single-line text) alla tabella Users
-   - Popola le email dei ~20 invitati
-   - Conferma a Roberto il nome esatto del campo (potrebbe non essere
-     letteralmente "Email")
+   - ✅ Colonna aggiunta. Nome confermato via probe 2026-05-29:
+     esattamente `Email` (coincide con `USER_FIELDS.email`, nessun
+     tocco al mapping). Oggi 1/4 record valorizzati.
+   - ⏳ Popola le email dei ~20 invitati (manca; ma per scaffoldare e
+     testare 8d basta che ci sia l'email di login del tester).
+   - ✅ Deciso con Cipo (2026-05-29): il gate 8d controlla **solo la
+     presenza dell'email** in Users. `Active?` NON entra nella regola
+     (niente blocco da quel campo). Per sospendere un invitato si
+     rimuove la riga.
 
 Quando arrivano (1) e (2), 8b + 8c sono lavoro di codice di una
 sessione. Senza (3), 8d non è testabile end-to-end ma posso
 comunque scaffoldarne la logica.
+
+**Step manuali Google OAuth (per Roberto, sessione 7):**
+1. console.cloud.google.com → New Project `toto-mondiale`.
+2. OAuth consent screen → External → app name `Toto Mondiale`, support
+   + developer email → scope SOLO `email` / `profile` / `openid` →
+   **Publish App** (Production, no verifica Google).
+3. Credentials → Create OAuth client ID → Web application
+   `toto-mondiale-web`.
+   - Authorized JavaScript origins: `http://localhost:3000`
+   - Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`
+     (in prod si aggiunge `https://<dominio>/api/auth/callback/google` → slice #12)
+4. Copia Client ID + secret in `.env.local` come `AUTH_GOOGLE_ID` /
+   `AUTH_GOOGLE_SECRET` (mai in repo).
+
+## Roadmap deploy (slice #9 → #12)
+
+Architettura target: VM **Hetzner Cloud** (Ubuntu 24.04, ~CX22) con
+**Docker Compose**, due container: app Next.js standalone +
+`cloudflared`. **Cloudflare Tunnel** come ingress → nessuna porta
+aperta sul VPS, TLS gestito da Cloudflare. SQLite (`prod.db`) su volume
+persistente; per ~20 utenti basta e avanza, backup = copia del file.
+
+| # | Step | Stato | Bloccato da |
+|---|---|---|---|
+| 9  | Dockerize: `output:'standalone'`, Dockerfile multi-stage, compose con volume SQLite + migrate all'avvio, smoke `docker compose up` | ⏳ | — |
+| 10 | Dominio dedicato → Cloudflare (nameserver) → Tunnel su Zero Trust → tunnel token | ⏳ | Roberto registra dominio |
+| 11 | VM Hetzner, Docker, deploy compose + `cloudflared`, secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_RESEND_*`, `AUTH_URL=https://<dominio>`) | ⏳ | slice #9, #10 |
+| 12 | Redirect URI prod su GCP, dominio verificato su Resend, test login end-to-end (Google + magic link) in prod | ⏳ | slice #11, env Resend |
+
+**Nota ordine:** il dominio dedicato (slice #10) sblocca anche Resend
+(8c). Conviene registrarlo presto in parallelo a 8b, così l'auth si
+completa e si testa in locale prima del deploy.
 
 ### Slice #7 — Unified Group page + completeness check opzione C ✅
 
