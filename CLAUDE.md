@@ -148,7 +148,9 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    altri round sono già gated da "Complete previous round").
 8. 🟡 **Auth + visibility model (slice #8)** — IN CORSO. Sotto-slice:
    - 8a ✅ Scaffold Auth.js v5 + Prisma + SQLite, providers vuoti.
-   - 8b ⏳ Google OAuth provider + pagina `/sign-in`.
+   - 8b ✅ Google OAuth provider + pagina `/sign-in`, login reale
+     verificato in browser (callback → `/dashboard`, User+Account in
+     SQLite).
    - 8c ⏳ Email magic link via Resend.
    - 8d ⏳ `signIn` callback: lookup email su Airtable Users, blocca
      se non presente.

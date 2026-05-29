@@ -1,13 +1,39 @@
 # HANDOFF.md — Toto Mondiale
 
-**Stato al 2026-05-29 sessione 7 (in apertura).** Decisa la strada
-deploy e aggiunta la roadmap #9→#12 (vedi sezione "Roadmap deploy").
-Si riparte da **8b (Google OAuth)**: Roberto sta creando il progetto
-GCP, appena `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` sono in `.env.local`
-si implementa il provider + pagina `/sign-in`. **Bloccanti esterni
-ancora aperti:** Google OAuth Client (Roberto, in corso), dominio
-dedicato da registrare → sblocca Resend per 8c (Roberto), colonna
-`Email` popolata sulla tabella Users di Airtable (Cipo).
+**Stato al 2026-05-29 sessione 7.** Decisa la strada deploy e aggiunta
+la roadmap #9→#12 (vedi sezione "Roadmap deploy"). **8b chiuso**:
+provider Google + pagina `/sign-in`, login reale verificato in browser
+(account `robnovara@gmail.com`). Prossimo step **8c (Resend magic
+link)**, bloccato dal dominio dedicato. **Bloccanti esterni ancora
+aperti:** dominio dedicato da registrare → sblocca Resend per 8c
+(Roberto), colonna `Email` popolata sulla tabella Users di Airtable
+(Cipo, oggi 1/4).
+
+**8b (chiuso in sessione 7) — cosa è stato fatto:**
+- `lib/auth.ts`: aggiunto `Google` ai providers (Auth.js v5 legge
+  `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` dall'env in automatico).
+- `app/sign-in/page.tsx`: server component, bottone "Accedi con
+  Google" → server action `signIn('google', { redirectTo: '/dashboard' })`.
+  Se già loggato → redirect `/dashboard`.
+- `AUTH_URL=http://localhost:3000` pinnato in `.env.local` + documentato
+  in `.env.example`. Serve perché il dev server gira `-H 0.0.0.0`
+  (Tailscale) e senza pin Auth.js inferiva host `0.0.0.0`, rompendo il
+  match col redirect URI registrato su Google.
+- **Test da remoto via Tailscale:** SSH local-forward
+  `ssh -L 3000:localhost:3000 hypn0@<tailscale-ip>` poi browser su
+  `http://localhost:3000`. Google rifiuta IP nudi e http non-localhost
+  come redirect URI, quindi l'IP Tailscale diretto NON funziona.
+- **Footgun Prisma+SQLite risolto:** Prisma 6 risolve `file:./dev.db`
+  rispetto alla cartella dello schema (`prisma/`), NON alla repo root.
+  Esistevano due `dev.db` (root migrato vs `prisma/dev.db` vuoto che il
+  runtime apriva → errore `Configuration` "table Account does not
+  exist"). Fix: `prisma migrate deploy` su `prisma/dev.db`, rimosso il
+  `dev.db` vagante in root, `.gitignore` aggiornato per ignorare
+  `prisma/*.db` + sidecar WAL/journal. **L'unico DB valido ora è
+  `prisma/dev.db`.**
+- **Nota gate:** a questo stadio entra QUALSIASI account Google. Il
+  blocco "email deve essere in Users di Airtable" è 8d, non ancora
+  scritto.
 
 **Decisioni prese in sessione 7 (2026-05-29):**
 
@@ -156,7 +182,7 @@ durante stage locked).
 | # | Step | Stato | Bloccato da |
 |---|---|---|---|
 | 8a | Scaffold Auth.js + Prisma + SQLite, providers vuoti | ✅ | — |
-| 8b | Google OAuth + pagina `/sign-in` | 🟡 in corso | env `AUTH_GOOGLE_*` (Roberto crea progetto GCP) |
+| 8b | Google OAuth + pagina `/sign-in` | ✅ | — (login reale verificato) |
 | 8c | Email magic link via Resend | ⏳ | env `AUTH_RESEND_*` + **dominio dedicato** verificato su Resend |
 | 8d | `signIn` callback: lookup Airtable Users, blocca se non presente | ⏳ | colonna `Email` su Users (Cipo) |
 | 8e | Middleware: gating su `/prediction-set/*` | ⏳ | — |
