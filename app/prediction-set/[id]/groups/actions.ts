@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { checkOwnershipGuard } from '@/lib/access';
 import { updateGroupMatchPredictionsBatch } from '@/lib/airtable/groupMatchPredictions';
 import { updateGroupOrderPredictionsBatch } from '@/lib/airtable/groupOrderPredictions';
 import { checkLockGuard } from '@/lib/airtable/predictionSets';
@@ -89,6 +90,9 @@ export async function saveUnifiedGroupPredictions(
   }
 
   try {
+    const ownershipError = await checkOwnershipGuard(predictionSetId);
+    if (ownershipError) return { ok: false, error: ownershipError };
+
     const lockError = await checkLockGuard(predictionSetId, 'group');
     if (lockError) return { ok: false, error: lockError };
 

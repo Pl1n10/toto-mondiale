@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
 import { KnockoutTable } from '@/components/predictions/KnockoutTable';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LockBanner } from '@/components/ui/LockBanner';
+import { resolveSectionAccess } from '@/lib/access';
 import { fetchKnockoutMatches } from '@/lib/airtable/knockoutMatches';
 import { fetchKnockoutPredictions } from '@/lib/airtable/knockoutPredictions';
 import { fetchPredictionSet } from '@/lib/airtable/predictionSets';
@@ -19,7 +21,8 @@ export default async function KnockoutPage({ params }: PageProps) {
   let predictions;
   let matches;
   let teamsMap: Map<RecordId, string>;
-  let locked = false;
+  let readOnly = false;
+  let allowed = true;
   try {
     const [set, p, m, t] = await Promise.all([
       fetchPredictionSet(params.id),
@@ -30,7 +33,11 @@ export default async function KnockoutPage({ params }: PageProps) {
     predictions = p;
     matches = m;
     teamsMap = t;
-    locked = set.knockoutPredictionsLocked === true;
+    // Slice #8f: own set → editable unless locked; other's set → read-only
+    // and only once locked, otherwise blocked.
+    const access = await resolveSectionAccess(set, 'knockout');
+    allowed = access.allowed;
+    readOnly = access.readOnly;
   } catch (err) {
     return (
       <main className="mx-auto max-w-4xl px-4 py-6">
@@ -41,6 +48,9 @@ export default async function KnockoutPage({ params }: PageProps) {
       </main>
     );
   }
+
+  // Outside the try so the Next.js 404 signal propagates.
+  if (!allowed) notFound();
 
   const teamNames: Record<RecordId, string> = Object.fromEntries(teamsMap);
 
@@ -60,13 +70,13 @@ export default async function KnockoutPage({ params }: PageProps) {
         </p>
       </header>
 
-      {locked && <LockBanner />}
+      {readOnly && <LockBanner />}
       <KnockoutTable
         predictionSetId={params.id}
         predictions={predictions}
         matches={matches}
         teamNames={teamNames}
-        readOnly={locked}
+        readOnly={readOnly}
       />
     </main>
   );

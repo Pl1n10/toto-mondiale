@@ -80,6 +80,7 @@ Smoke test rapido senza Airtable: app gira su mock data se le env
 | Tabelle predizioni | `components/predictions/` |
 | Auth.js config + provider Google + callback gate/authorized | `lib/auth.ts` |
 | Airtable Users lookup (allowlist 8d) | `lib/airtable/users.ts` |
+| Visibility model + ownership guard (8f) | `lib/access.ts` |
 | Route gating (`/prediction-set/*`) | `middleware.ts` |
 | Auth API handler | `app/api/auth/[...nextauth]/route.ts` |
 
@@ -149,7 +150,7 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    "Schedina incompleta — salvare comunque la bozza?" sia sulla pagina
    unificata che sul knockout (limitata a Finale + Terzo posto, gli
    altri round sono già gated da "Complete previous round").
-8. 🟡 **Auth + visibility model (slice #8)** — Google-only, sessioni JWT
+8. ✅ **Auth + visibility model (slice #8)** — Google-only, sessioni JWT
    (revisione 2026-05-29: Prisma/SQLite/Resend rimossi). Sotto-slice:
    - 8a ✅ Scaffold Auth.js v5 (lo scaffold Prisma/SQLite è poi stato
      rimosso nella revisione Google-only).
@@ -162,8 +163,11 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
    - 8e ✅ `middleware.ts`: gating su `/prediction-set/*` via callback
      `authorized` (sessioni JWT → leggibili su Edge, niente DB).
      Verificato: route protetta senza auth → 307 `/sign-in`.
-   - 8f ⏳ Filtro server-side per visibility model: vede solo le sue
-     durante unlocked, tutte read-only durante locked.
+   - 8f ✅ Visibility model (`lib/access.ts`): durante unlocked vede
+     solo le sue (`notFound()` sulle altrui), durante locked vede tutte
+     read-only. Ownership via `PredictionSet.User` vs email loggata.
+     `checkOwnershipGuard` difende anche le save action (no scrittura
+     su schedine altrui).
 9. ⏳ **Dockerize (slice #9)** — `output: 'standalone'` in
    `next.config`, `Dockerfile` multi-stage. App **stateless** (sessioni
    JWT, nessun DB): niente volume, niente migrazioni, niente backup.

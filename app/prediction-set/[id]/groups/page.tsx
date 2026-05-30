@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
 import { UnifiedGroupTable } from '@/components/predictions/UnifiedGroupTable';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LockBanner } from '@/components/ui/LockBanner';
+import { resolveSectionAccess } from '@/lib/access';
 import { fetchGroupMatchPredictions } from '@/lib/airtable/groupMatchPredictions';
 import { fetchGroupOrderPredictions } from '@/lib/airtable/groupOrderPredictions';
 import { fetchPredictionSet } from '@/lib/airtable/predictionSets';
@@ -39,7 +41,8 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
   let orderPredictions;
   let setName: string | undefined;
   let setNumber: number | undefined;
-  let locked = false;
+  let readOnly = false;
+  let allowed = true;
 
   try {
     const [set, matches, order] = await Promise.all([
@@ -51,7 +54,11 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
     orderPredictions = order;
     setName = set.name;
     setNumber = set.predictionNumber;
-    locked = set.groupPredictionsLocked === true;
+    // Slice #8f: own set → editable unless locked; other's set → read-only
+    // and only once locked, otherwise blocked.
+    const access = await resolveSectionAccess(set, 'group');
+    allowed = access.allowed;
+    readOnly = access.readOnly;
   } catch (err) {
     return (
       <ErrorState
@@ -60,6 +67,10 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
       />
     );
   }
+
+  // Outside the try so the Next.js 404 signal propagates instead of being
+  // swallowed by the catch above.
+  if (!allowed) notFound();
 
   if (matchPredictions.length === 0 && orderPredictions.length === 0) {
     return (
@@ -78,12 +89,12 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
           {setNumber != null && ` (#${setNumber})`}
         </p>
       )}
-      {locked && <LockBanner />}
+      {readOnly && <LockBanner />}
       <UnifiedGroupTable
         predictionSetId={predictionSetId}
         matchPredictions={matchPredictions}
         orderPredictions={orderPredictions}
-        readOnly={locked}
+        readOnly={readOnly}
       />
     </>
   );

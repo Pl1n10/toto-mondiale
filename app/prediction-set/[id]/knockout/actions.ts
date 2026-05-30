@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { checkOwnershipGuard } from '@/lib/access';
 import { updateKnockoutPredictionsBatch } from '@/lib/airtable/knockoutPredictions';
 import { checkLockGuard } from '@/lib/airtable/predictionSets';
 import {
@@ -23,6 +24,9 @@ export async function saveKnockoutPredictions(
   }
 
   try {
+    const ownershipError = await checkOwnershipGuard(parsed.data.predictionSetId);
+    if (ownershipError) return { ok: false, error: ownershipError };
+
     const lockError = await checkLockGuard(parsed.data.predictionSetId, 'knockout');
     if (lockError) return { ok: false, error: lockError };
 

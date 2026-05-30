@@ -7,10 +7,31 @@ stack Prisma/SQLite (le sessioni sono ora **JWT, stateless**). Questo
 sblocca 8e via middleware Edge banale e rende il deploy stateless.
 **Slice #8 chiuso fino a 8e; resta solo 8f (visibility model).**
 
-**8b + 8d + 8e chiusi**, **8c annullato**. **Dominio registrato:
-`t0t0m0ndlale.online`** (placeholder sostituiti ovunque). **Deploy
-ridisegnato su GCP e2-micro Always Free + GHCR** (scelta Roberto
-2026-05-29, al posto di Hetzner).
+**Slice #8 COMPLETO** (8b+8d+8e+8f chiusi, 8c annullato). **Dominio
+registrato: `t0t0m0ndlale.online`** (placeholder sostituiti ovunque).
+**Deploy ridisegnato su GCP e2-micro Always Free + GHCR** (scelta
+Roberto 2026-05-29, al posto di Hetzner). **Prossimo: slice #9
+(Dockerize) — primo step di codice del deploy, non bloccato.**
+
+**8f (chiuso in sessione 7) — visibility model:**
+- `lib/access.ts`: `resolveSectionAccess` (pagine `/groups`,
+  `/knockout`), `resolveSetAccess` (overview), `checkOwnershipGuard`
+  (save action). Ownership = `PredictionSet.userId` (campo `User`, già
+  mappato) vs id dell'utente loggato (email sessione → Airtable Users).
+- Regola: **propria** → editabile se non lockata; **altrui + lockata**
+  → read-only (vista scoreboard); **altrui + unlocked** → `notFound()`.
+- Le 3 pagine chiamano l'helper col `set` GIÀ fetchato (no doppio
+  fetch); `notFound()` è FUORI dal try così il segnale 404 propaga.
+- `checkOwnershipGuard` aggiunto a `saveUnifiedGroupPredictions` e
+  `saveKnockoutPredictions` (subito prima di `checkLockGuard`):
+  difesa server-side, nessuna scrittura su schedine altrui.
+- Probe Airtable: `Allowed Prediction Sets` su Users è un COUNT (=1),
+  inutile; la fonte è `Prediction Sets.User`. Lock flags oggi tutti
+  vuoti (fase unlocked).
+- ⚠️ **Nota test:** con 8f attivo, per editare devi aprire una schedina
+  TUA. Loggato come `robnovara@gmail.com` la tua è `recNmzrO4E7c0ZZEB`;
+  `recnWpdJeglgnngOc` è di Cipo (unlocked) → 404. Punta
+  `DEBUG_PREDICTION_SET_ID` alla tua, o logga come l'owner.
 
 **Bloccanti esterni ancora aperti:**
 - Cloudflare: dominio NON ancora aggiunto / nameserver da cambiare
@@ -238,7 +259,7 @@ durante stage locked).
 | 8c | ~~Email magic link via Resend~~ | ❌ annullato | Google-only |
 | 8d | `signIn` callback: lookup Airtable Users, blocca se non presente | ✅ | — (6 righe Users, testabile) |
 | 8e | Gating route `/prediction-set/*` (middleware Edge, sessioni JWT) | ✅ | — (307 verificato) |
-| 8f | Filtro visibility: only-mine quando unlocked, all-read-only quando locked | ⏳ | — prossimo step |
+| 8f | Filtro visibility: only-mine quando unlocked, all-read-only quando locked | ✅ | — (build verde; test owner/altrui demandato a Roberto) |
 
 **Nota 8e (risolta dal refactor Google-only):** il problema "middleware
 Edge non valida sessioni DB Prisma" è SPARITO perché non c'è più un DB —

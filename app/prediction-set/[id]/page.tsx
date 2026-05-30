@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 
 import { ErrorState } from '@/components/ui/ErrorState';
+import { resolveSetAccess } from '@/lib/access';
 import { fetchPredictionSet } from '@/lib/airtable/predictionSets';
 
 export const dynamic = 'force-dynamic';
@@ -27,13 +29,19 @@ export default async function PredictionSetPage({ params }: PageProps) {
   let setName: string | undefined;
   let setNumber: number | undefined;
   let loadError: string | null = null;
+  let allowed = true;
   try {
     const set = await fetchPredictionSet(params.id);
     setName = set.name;
     setNumber = set.predictionNumber;
+    // Slice #8f: own set always visible; other's set only once it locks.
+    allowed = (await resolveSetAccess(set)).allowed;
   } catch (err) {
     loadError = err instanceof Error ? err.message : 'Unknown error';
   }
+
+  // Outside the try so the Next.js 404 signal propagates.
+  if (!allowed) notFound();
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
