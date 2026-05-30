@@ -10,8 +10,29 @@ sblocca 8e via middleware Edge banale e rende il deploy stateless.
 **Slice #8 COMPLETO** (8b+8d+8e+8f chiusi, 8c annullato). **Dominio
 registrato: `t0t0m0ndlale.online`** (placeholder sostituiti ovunque).
 **Deploy ridisegnato su GCP e2-micro Always Free + GHCR** (scelta
-Roberto 2026-05-29, al posto di Hetzner). **Prossimo: slice #9
-(Dockerize) — primo step di codice del deploy, non bloccato.**
+Roberto 2026-05-29, al posto di Hetzner). **Slice #9 (Dockerize)
+chiuso** (smoke verde). **Prossimo: #10 (Roberto aggiunge il dominio a
+Cloudflare → Tunnel token) + #11 (VM GCP + push GHCR + deploy).**
+
+**Slice #9 (chiuso sessione 7) — Dockerize:**
+- `next.config.mjs`: `output: 'standalone'`.
+- `Dockerfile` multi-stage (`node:24-alpine`, deps→builder→runner,
+  utente non-root `nextjs`), `.dockerignore`, `public/.gitkeep` (il
+  COPY del runner lo richiede).
+- `docker-compose.yml`: servizi `app` (immagine GHCR) + `cloudflared`,
+  **nessuna porta host** (ingress solo via Tunnel), `env_file:
+  .env.production`. App stateless → niente volume.
+- `.env.production.example` committato; `.env.production` gitignored.
+- **Smoke verde sulla devbox:** `docker build` OK (immagine 261 MB),
+  `docker run` → sign-in 200, providers Google, `/prediction-set/*`
+  307 (middleware attivo nel build standalone), ready 70ms.
+- **Recipe push GHCR (per #11):**
+  ```
+  echo $GHCR_PAT | docker login ghcr.io -u Pl1n10 --password-stdin
+  docker build -t ghcr.io/pl1n10/toto-mondiale:latest .
+  docker push ghcr.io/pl1n10/toto-mondiale:latest
+  ```
+  (PAT classico con scope `write:packages`; rendere il package privato.)
 
 **8f (chiuso in sessione 7) — visibility model:**
 - `lib/access.ts`: `resolveSectionAccess` (pagine `/groups`,
@@ -341,7 +362,7 @@ la VM la scarica già pronta.
 
 | # | Step | Stato | Bloccato da |
 |---|---|---|---|
-| 9  | Dockerize: `output:'standalone'`, Dockerfile multi-stage, compose (app + `cloudflared`), build su devbox → push GHCR, smoke `docker compose up` | ⏳ | — |
+| 9  | Dockerize: `output:'standalone'`, Dockerfile multi-stage, compose (app + `cloudflared`) | ✅ | — (smoke verde, 261 MB) |
 | 10 | `t0t0m0ndlale.online` → Cloudflare (nameserver) → Tunnel su Zero Trust → tunnel token | ⏳ | Roberto aggiunge a Cloudflare |
 | 11 | VM GCP e2-micro Always Free, Docker, pull immagine GHCR + deploy compose + `cloudflared`, secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_URL=https://t0t0m0ndlale.online`), budget alert 1€ | ⏳ | slice #9, #10 |
 | 12 | Redirect URI prod + origin JS su GCP OAuth, test login Google end-to-end in prod | ⏳ | slice #11 |

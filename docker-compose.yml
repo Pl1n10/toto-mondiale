@@ -1,0 +1,25 @@
+# Slice #9 / #11: production stack on the GCP VM.
+# Two containers, no host ports — the app is reached only through the
+# Cloudflare Tunnel (cloudflared) over the internal compose network.
+# The app is stateless (JWT sessions, no DB) so there is no volume.
+#
+# Secrets live in .env.production (gitignored, see .env.production.example).
+# The app ignores TUNNEL_TOKEN; cloudflared ignores the AIRTABLE_/AUTH_ vars.
+
+services:
+  app:
+    image: ghcr.io/pl1n10/toto-mondiale:latest
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    expose:
+      - "3000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      - .env.production
+    depends_on:
+      - app

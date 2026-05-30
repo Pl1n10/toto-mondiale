@@ -168,12 +168,13 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
      read-only. Ownership via `PredictionSet.User` vs email loggata.
      `checkOwnershipGuard` difende anche le save action (no scrittura
      su schedine altrui).
-9. ⏳ **Dockerize (slice #9)** — `output: 'standalone'` in
-   `next.config`, `Dockerfile` multi-stage. App **stateless** (sessioni
-   JWT, nessun DB): niente volume, niente migrazioni, niente backup.
-   `docker-compose.yml` con due servizi (app + `cloudflared`). Build
-   dell'immagine sulla **devbox** (la e2-micro andrebbe OOM) → push su
-   **GHCR** (`ghcr.io/pl1n10/toto-mondiale`). Smoke `docker compose up`.
+9. ✅ **Dockerize (slice #9)** — `output: 'standalone'` in
+   `next.config.mjs`, `Dockerfile` multi-stage (deps→builder→runner,
+   `node:24-alpine`, non-root), `.dockerignore`, `docker-compose.yml`
+   con due servizi (app + `cloudflared`, nessuna porta host, app
+   **stateless** → niente volume). Smoke verde: immagine 261 MB,
+   container serve sign-in/providers/middleware (ready 70ms). Secret in
+   `.env.production` (gitignored, template `.env.production.example`).
 10. ⏳ **Dominio + Cloudflare (slice #10)** — dominio
     `t0t0m0ndlale.online` (registrato 2026-05-29) → aggiungere a
     Cloudflare (cambio nameserver), Tunnel dal dashboard Zero Trust →
