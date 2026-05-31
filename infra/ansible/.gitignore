@@ -1,0 +1,5 @@
+# Resolved, secret-bearing files — never commit (the .example templates stay).
+inventory.ini
+group_vars/all.yml
+group_vars/vault.yml
+*.retry

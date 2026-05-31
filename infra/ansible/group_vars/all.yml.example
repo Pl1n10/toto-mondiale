@@ -1,0 +1,27 @@
+# Copy to group_vars/all.yml (gitignored) and fill in. Secrets are best kept
+# in an Ansible Vault file or passed with --extra-vars / env, not committed.
+
+# --- hardening role ---
+hardening_swap_size_mb: 2048 # vital on a 1 GB e2-micro
+hardening_swappiness: 10
+hardening_unattended_upgrades: true
+hardening_fail2ban_enabled: true
+
+# --- app role ---
+app_dir: /opt/toto-mondiale
+app_image: ghcr.io/pl1n10/toto-mondiale:latest
+app_watchtower_poll_seconds: 300
+
+# --- GHCR pull credentials (private package). Use a read-only PAT. ---
+ghcr_user: Pl1n10
+ghcr_token: "ghp_xxx_READ_ONLY" # prefer vault / --extra-vars
+
+# --- secrets injected into .env.production on the VM ---
+# Keep these in vault. Listed here so the template has a complete contract.
+airtable_api_token: ""
+airtable_base_id: "appPV77eshDFrfgII"
+auth_secret: "" # openssl rand -base64 32
+auth_google_id: ""
+auth_google_secret: ""
+auth_url: "https://t0t0m0ndlale.online"
+tunnel_token: "" # Cloudflare Zero Trust tunnel token (slice #10)

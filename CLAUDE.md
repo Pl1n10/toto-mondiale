@@ -83,6 +83,8 @@ Smoke test rapido senza Airtable: app gira su mock data se le env
 | Visibility model + ownership guard (8f) | `lib/access.ts` |
 | Route gating (`/prediction-set/*`) | `middleware.ts` |
 | Auth API handler | `app/api/auth/[...nextauth]/route.ts` |
+| IaC deploy (Terraform + Ansible) | `infra/` (README spiega topologia) |
+| Runbook generici riutilizzabili | `minion` → `templates/playbooks/gcp-deploy/` |
 
 ## Cosa NON fare in questo repo
 
@@ -179,16 +181,20 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
     `t0t0m0ndlale.online` (registrato 2026-05-29) → aggiungere a
     Cloudflare (cambio nameserver), Tunnel dal dashboard Zero Trust →
     tunnel token.
-11. ⏳ **Deploy GCP (slice #11)** — VM **GCP e2-micro Always Free**
-    (Ubuntu 24.04, regione US), Docker, compose con due container: app
-    Next.js standalone (immagine pullata da GHCR) + `cloudflared`.
-    Esposizione via **Cloudflare Tunnel**: nessuna porta aperta, TLS
-    Cloudflare. Budget alert a 1€. ($300 di free-trial come paracadute
-    per una e2-small in Europa se la micro è tirata.)
-    Secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`,
-    `AUTH_URL=https://t0t0m0ndlale.online`).
-12. ⏳ **Wiring prod (slice #12)** — redirect URI prod su GCP
-    (`https://t0t0m0ndlale.online/api/auth/callback/google`) + origin
-    JS, test login Google end-to-end in produzione.
+11. ⏳ **Deploy GCP via IaC (slice #11)** — control plane sulla **devbox**.
+    `infra/terraform/` provisiona VM **e2-micro Always Free** (Ubuntu
+    24.04, regione US), VPC senza ingress, service account least-priv,
+    startup-script che fa join **Tailscale** (`--ssh`); state su **bucket
+    GCS**. `infra/ansible/` (over Tailscale SSH): hardening (swap 2 GB,
+    sshd, unattended-upgrades, fail2ban), Docker, app stack (app +
+    `cloudflared` + **Watchtower** autodeploy). Immagine **buildata su
+    devbox** e pushata su GHCR (la e2-micro va OOM su build). Secret via
+    `group_vars`/vault (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`,
+    `AUTH_URL`, `TUNNEL_TOKEN`). Runbook generici: famiglia
+    `gcp-deploy` in `minion` (`templates/playbooks/`).
+12. ⏳ **Wiring prod (slice #12)** — redirect URI prod
+    (`https://t0t0m0ndlale.online/api/auth/callback/google`) + origin JS
+    sul client OAuth Google, test login end-to-end (playbook
+    `oauth-prod-wiring`).
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.

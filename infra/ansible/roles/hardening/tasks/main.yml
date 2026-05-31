@@ -1,0 +1,90 @@
+---
+# --- Swap: non-negotiable on a 1 GB e2-micro. `next build` runs on the
+# devbox, but the runtime + cloudflared + watchtower can still spike. ---
+- name: Create swap file
+  ansible.builtin.command: "fallocate -l {{ hardening_swap_size_mb }}M /swapfile"
+  args:
+    creates: /swapfile
+
+- name: Secure swap file permissions
+  ansible.builtin.file:
+    path: /swapfile
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Format swap file
+  ansible.builtin.command: mkswap /swapfile
+  register: hardening_mkswap
+  changed_when: "'Setting up swapspace' in hardening_mkswap.stdout"
+  failed_when: hardening_mkswap.rc != 0 and 'Setting up swapspace' not in hardening_mkswap.stdout
+
+- name: Enable swap now
+  ansible.builtin.command: swapon /swapfile
+  register: hardening_swapon
+  changed_when: hardening_swapon.rc == 0
+  failed_when: hardening_swapon.rc != 0 and 'already' not in (hardening_swapon.stderr | default(''))
+
+- name: Persist swap in fstab
+  ansible.posix.mount:
+    path: none
+    src: /swapfile
+    fstype: swap
+    opts: sw
+    state: present
+
+- name: Tune swappiness
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "{{ hardening_swappiness }}"
+    state: present
+    sysctl_set: true
+
+# --- SSH hardening. The VM has no public SSH (no firewall ingress; access is
+# via Tailscale SSH) but defense-in-depth: no passwords, no root. ---
+- name: Harden sshd
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      ChallengeResponseAuthentication no
+      KbdInteractiveAuthentication no
+  notify: Restart sshd
+
+# --- Unattended security upgrades ---
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: hardening_unattended_upgrades
+
+- name: Enable unattended-upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  when: hardening_unattended_upgrades
+
+# --- fail2ban (belt-and-suspenders; sshd is not publicly reachable) ---
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+  when: hardening_fail2ban_enabled
+
+- name: Enable fail2ban service
+  ansible.builtin.service:
+    name: fail2ban
+    enabled: true
+    state: started
+  when: hardening_fail2ban_enabled

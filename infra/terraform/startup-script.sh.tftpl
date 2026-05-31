@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# First-boot script (GCE metadata startup-script). Runs once as root.
+# Goal: create the admin user and join the tailnet so Ansible can take over.
+# Everything else (hardening, docker, app) is Ansible's job — keep this lean.
+set -euo pipefail
+
+ADMIN_USER="${ssh_admin_user}"
+
+# --- admin user with passwordless sudo (key/SSH handled by Tailscale SSH) ---
+if ! id "$ADMIN_USER" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash "$ADMIN_USER"
+fi
+echo "$ADMIN_USER ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/90-"$ADMIN_USER"
+chmod 0440 /etc/sudoers.d/90-"$ADMIN_USER"
+
+# --- Tailscale -------------------------------------------------------------
+# Install from the official repo and bring the node up with Tailscale SSH on,
+# tagged so the tailnet ACL can grant Ansible access. --ssh means we do not
+# manage authorized_keys here; the tailnet ACL is the source of truth.
+curl -fsSL https://tailscale.com/install.sh | sh
+
+tailscale up \
+  --authkey="${tailscale_authkey}" \
+  --hostname="${tailscale_hostname}" \
+  --ssh \
+  --accept-dns=false
+
+# Marker so we can tell the startup script completed.
+touch /var/lib/toto-bootstrap-done

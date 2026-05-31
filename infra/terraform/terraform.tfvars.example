@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Secrets can also be passed
+# via environment, e.g. export TF_VAR_tailscale_authkey=tskey-... instead.
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# Reusable, pre-authorized, tagged (tag:gcp) key from the Tailscale admin
+# console. Prefer TF_VAR_tailscale_authkey in the shell over committing here.
+tailscale_authkey = "tskey-auth-xxxxxxxxxxxx"
+
+# Optional: enable the budget alert. Leave empty to skip it.
+# billing_account_id = "XXXXXX-XXXXXX-XXXXXX"
+# budget_amount_eur  = 1

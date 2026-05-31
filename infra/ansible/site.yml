@@ -1,0 +1,16 @@
+---
+# One play, three roles, in order: harden the box, install Docker, deploy the
+# app. Idempotent — safe to re-run. Run with:
+#   ansible-playbook site.yml
+# or a single concern:
+#   ansible-playbook site.yml --tags app
+- name: Provision and deploy toto-mondiale
+  hosts: prod
+  become: true
+  roles:
+    - role: hardening
+      tags: [hardening]
+    - role: docker
+      tags: [docker]
+    - role: app
+      tags: [app]

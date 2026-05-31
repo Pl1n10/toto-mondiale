@@ -1,0 +1,12 @@
+# Terraform local artifacts and secrets — never commit.
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Real variable files (the .example template stays tracked).
+*.tfvars
+*.tfvars.json
+!*.tfvars.example

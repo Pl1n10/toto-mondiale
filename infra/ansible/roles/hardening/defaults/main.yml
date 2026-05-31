@@ -1,0 +1,5 @@
+---
+hardening_swap_size_mb: 2048
+hardening_swappiness: 10
+hardening_unattended_upgrades: true
+hardening_fail2ban_enabled: true

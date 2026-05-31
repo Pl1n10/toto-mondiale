@@ -1,0 +1,49 @@
+---
+- name: Create app directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ ghcr_user | lower }}"
+    mode: "0750"
+  become: true
+
+# Log in to GHCR so both the initial pull and Watchtower can read the private
+# package. The login writes ~/.docker/config.json, which Watchtower mounts.
+- name: Log in to GHCR
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ ghcr_user }}"
+    password: "{{ ghcr_token }}"
+  become: true
+  no_log: true
+
+- name: Render .env.production
+  ansible.builtin.template:
+    src: env.production.j2
+    dest: "{{ app_dir }}/.env.production"
+    owner: root
+    mode: "0600"
+  become: true
+  no_log: true
+  notify: Recreate app stack
+
+- name: Render docker-compose.prod.yml
+  ansible.builtin.template:
+    src: docker-compose.prod.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: root
+    mode: "0644"
+  become: true
+  notify: Recreate app stack
+
+- name: Pull images
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    pull: always
+  become: true
+
+- name: Bring the stack up
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    state: present
+  become: true

@@ -1,0 +1,9 @@
+# Copy to inventory.ini (gitignored) and set the host to the Tailscale name
+# the VM joined with (terraform output tailscale_hostname). No public IP here.
+[prod]
+toto-mondiale ansible_host=toto-mondiale ansible_user=deploy
+
+[prod:vars]
+# Tailscale SSH handles authentication; no key file needed. If you are NOT
+# using Tailscale SSH, point ansible_ssh_private_key_file at your key instead.
+ansible_python_interpreter=/usr/bin/python3

@@ -1,5 +1,57 @@
 # HANDOFF.md — Toto Mondiale
 
+**Stato al 2026-05-31 sessione 8. Deploy ridisegnato come IaC dal
+control plane (devbox).** Decisione: invece del setup manuale della VM,
+le slice #11/#12 diventano **Terraform + Ansible** versionati in
+`infra/`. Motivo strategico (Roberto): avere un **pattern DevOps
+riutilizzabile** per altri progetti → i runbook generici diventano una
+**famiglia di playbook in `minion`** (`templates/playbooks/gcp-deploy/`).
+Modello scelto: *codice-nel-repo* (`infra/` concreto) + *playbook-spiega*
+(markdown parametrico in minion). Forcelle decise: SSH via **Tailscale**,
+state Terraform su **bucket GCS**, autodeploy via **Watchtower**.
+
+**Cosa è stato scaffoldato (sessione 8), tutto verde:**
+- `infra/terraform/`: VPC senza ingress, e2-micro + service account
+  least-privilege, IP ephemeral solo-egress, startup-script che fa join
+  Tailscale (`--ssh`), budget alert opzionale, backend GCS. **Verde:**
+  `terraform init -backend=false && validate && fmt -check` OK.
+- `infra/ansible/`: ruoli `hardening` (swap 2 GB, sshd, unattended-
+  upgrades, fail2ban), `docker` (engine + compose plugin via
+  deb822_repository), `app` (login GHCR, template compose+env, up,
+  Watchtower poll). **Verde:** `ansible-lint` passa **profilo
+  production** (0 failure) + `--syntax-check` OK. Variabili prefissate
+  per ruolo (`hardening_`/`app_`); i secret stanno in `group_vars`/vault.
+- `infra/README.md`: topologia + ordine operazioni + come validare
+  offline. Compose/env di prod allineati a quelli root (slice #9) con
+  l'aggiunta di Watchtower.
+- **minion** (`~/projects/minion`): famiglia `gcp-deploy/` (INDEX + 7
+  playbook `.md.tmpl`: gcp-project-bootstrap, terraform-gce-vm,
+  tailscale-join-vm, ghcr-publish, cloudflare-tunnel,
+  vm-provision-ansible, oauth-prod-wiring). Suite minion verde (46
+  passed). Nota in `TODO.md`: il discovery va reso ricorsivo per far
+  emergere le famiglie (oggi `iterdir()` top-level non le vede → sono
+  doc di riferimento, non rompono i test).
+
+**Prossimo (slice #10–#12), ordine e chi fa cosa:**
+1. **#10 (Roberto)**: dominio su Cloudflare (nameserver) + Tunnel su Zero
+   Trust → tunnel token. Vedi playbook `cloudflare-tunnel`.
+2. **Roberto, prerequisiti per far girare l'IaC**: progetto GCP + billing
+   + `gcloud auth application-default login`; **auth key Tailscale**
+   reusable taggata `tag:gcp` (+ regola ssh nell'ACL del tailnet);
+   **PAT GHCR** write (push da devbox) e read (pull/Watchtower).
+3. **#11 (Claude, quando arrivano i prerequisiti)**: `gcp-project-bootstrap`
+   → `terraform apply` → `ghcr-publish` (build su devbox) →
+   `ansible-playbook site.yml`.
+4. **#12 (Roberto + Claude)**: redirect URI prod + JS origin sul client
+   OAuth Google, test login end-to-end. Playbook `oauth-prod-wiring`.
+
+**Tooling installato sulla devbox in sessione 8:** `terraform` 1.9.8 in
+`~/.local/bin`; `ansible-core`+`ansible-lint` in un venv usa-e-getta
+`/tmp/ansv` (per validare; NON persistente — ricrearlo o installare
+stabilmente alla prossima sessione). `gcloud` NON ancora installato.
+
+---
+
 **Stato al 2026-05-29 sessione 7.** **Decisione architetturale grossa:
 auth Google-only.** Roberto ha confermato che tutti gli invitati hanno
 un account Google → magic-link/Resend ELIMINATO e con esso tutto lo
@@ -363,9 +415,10 @@ la VM la scarica già pronta.
 | # | Step | Stato | Bloccato da |
 |---|---|---|---|
 | 9  | Dockerize: `output:'standalone'`, Dockerfile multi-stage, compose (app + `cloudflared`) | ✅ | — (smoke verde, 261 MB) |
+| —  | **IaC scaffold** (`infra/` Terraform+Ansible) + famiglia playbook minion `gcp-deploy` | ✅ | — (TF validate + ansible-lint production verdi) |
 | 10 | `t0t0m0ndlale.online` → Cloudflare (nameserver) → Tunnel su Zero Trust → tunnel token | ⏳ | Roberto aggiunge a Cloudflare |
-| 11 | VM GCP e2-micro Always Free, Docker, pull immagine GHCR + deploy compose + `cloudflared`, secret via env (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_URL=https://t0t0m0ndlale.online`), budget alert 1€ | ⏳ | slice #9, #10 |
-| 12 | Redirect URI prod + origin JS su GCP OAuth, test login Google end-to-end in prod | ⏳ | slice #11 |
+| 11 | `gcp-project-bootstrap` → `terraform apply` (VM + Tailscale join) → `ghcr-publish` (build su devbox) → `ansible-playbook site.yml` (hardening+docker+app+watchtower) | ⏳ | #10 + prereq GCP/Tailscale/PAT (Roberto) |
+| 12 | Redirect URI prod + origin JS su client OAuth Google, test login end-to-end (`oauth-prod-wiring`) | ⏳ | slice #11 |
 
 **Note:**
 - e2-micro = 1 GB RAM: runtime OK per ~20 utenti, ma build solo su

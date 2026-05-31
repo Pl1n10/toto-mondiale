@@ -1,0 +1,8 @@
+---
+# Recreate containers when the compose file or env changed.
+- name: Recreate app stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    state: present
+    recreate: always
+  become: true

@@ -1,0 +1,33 @@
+# Rendered by Ansible onto the VM at {{ app_dir }}/docker-compose.yml.
+# Three containers, no host ports. Ingress is Cloudflare Tunnel only.
+# App is stateless (JWT sessions) -> no volume. Watchtower auto-updates :latest.
+services:
+  app:
+    image: {{ app_image }}
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    expose:
+      - "3000"
+    labels:
+      # Opt this container in to Watchtower polling.
+      com.centurylinklabs.watchtower.enable: "true"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      - .env.production
+    depends_on:
+      - app
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    command: --label-enable --cleanup --poll-interval {{ app_watchtower_poll_seconds }}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Reuse the GHCR login written by `docker login` so Watchtower can pull
+      # the private package.
+      - /root/.docker/config.json:/config.json:ro
