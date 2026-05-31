@@ -83,9 +83,53 @@ verde dai binari stabili. (Aggiornata anche la tabella runtime nel
 - **NB gcloud nel mio Bash non-interattivo:** non è nel PATH (l'installer
   lo mette in `.bashrc`, non caricato). Prefisso sempre
   `export PATH="$HOME/google-cloud-sdk/bin:$PATH"`.
-- **Resta per `terraform apply`:** la **auth key Tailscale** (`tag:gcp`)
-  — unico bloccante per creare la VM. Budget alert opzionale: passare
-  `billing_account_id=010620-50B760-DA5811` in tfvars per attivarlo.
+- Budget alert opzionale: passare `billing_account_id=010620-50B760-DA5811`
+  (+ `budget_amount_eur`) in tfvars per attivarlo (off di default).
+
+**Tailscale (sessione 8) — FATTO da Roberto:**
+- ACL del tailnet aggiornata: `tagOwners` con `tag:gcp` + una regola
+  `ssh` `accept` (`src autogroup:member`, `dst tag:gcp`, `users
+  deploy,root`). La regola `check`/`self` di default è rimasta.
+- Auth key **reusable + pre-approved + tag `tag:gcp`** generata e messa in
+  `infra/terraform/terraform.tfvars` (gitignored, riga `tailscale_authkey`).
+
+**`terraform plan` VERDE:** 5 risorse da creare (VPC `toto-mondiale-net`,
+subnet `10.10.0.0/24`, SA `toto-mondiale-vm@…`, IAM `logging.logWriter`,
+istanza e2-micro). 0 change / 0 destroy. Budget escluso (billing
+commentato).
+
+**⛔ BLOCCANTE ATTUALE — auth account Google (apply NON eseguito):**
+- L'`apply` fallisce su `invalid_grant: Bad Request`. Le prime chiamate
+  (enable API, bucket, plan) erano andate; dopo un secondo
+  `application-default login` Google ha **revocato i token** dell'account
+  dedicato `t0t0m0ndlale010101@gmail.com` — sia ADC che CLI ora falliscono
+  (`gcloud auth application-default print-access-token` e
+  `gcloud projects describe` danno entrambi `invalid_grant`).
+- Causa: gmail **nuovo senza numero di telefono** → Google lo flagga
+  quando usato in automazione da IP server. Non risolvibile senza
+  aggiungere un telefono.
+- Tentato anche `GOOGLE_OAUTH_ACCESS_TOKEN` dal token CLI → backend GCS
+  risponde 401. Vicolo cieco con i token OAuth umani.
+
+**DECISIONE IN SOSPESO (Roberto ci pensa):**
+- **Opzione consigliata:** operare gcloud/Terraform come
+  `robnovara@gmail.com` (account rodato, ha telefono). Passi: console
+  IAM del progetto → aggiungi `robnovara@gmail.com` come **Owner**; poi
+  sulla devbox `gcloud auth login` + `config set account/project` +
+  `application-default login` come robnovara. **Subito dopo creo un
+  service account `terraform-cp` con KEY** (gitignored, pattern già nel
+  `.gitignore`): la key del SA NON viene mai flaggata → Terraform diventa
+  stabile e indipendente dai token umani. Il progetto, il bucket e
+  l'**OAuth dell'app (8b) restano sull'account dedicato** — non si toccano.
+- **Alternativa:** aggiungere un telefono a `t0t0m0ndlale010101@gmail.com`
+  e rifare i login (rischio: numero già usato su altri account → rifiuto).
+
+**RIPRESA (quando deciso):** ripristina un'auth funzionante → crea SA
+`terraform-cp` + key → `GOOGLE_APPLICATION_CREDENTIALS=<key> terraform
+apply` → la VM fa join tailnet → verifica `ssh deploy@toto-mondiale`
+(Tailscale) → `ghcr-publish` (build+push da devbox) → `ansible-playbook
+site.yml`. Aggiornare poi il playbook minion: per control-plane headless,
+preferire **SA key**, non ADC di account consumer (lezione sessione 8).
 
 ---
 

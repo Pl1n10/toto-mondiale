@@ -10,3 +10,7 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 !*.tfvars.example
+
+# Service-account key for the Terraform control plane — NEVER commit.
+*-key.json
+sa-*.json
