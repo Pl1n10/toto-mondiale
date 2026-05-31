@@ -98,38 +98,41 @@ subnet `10.10.0.0/24`, SA `toto-mondiale-vm@…`, IAM `logging.logWriter`,
 istanza e2-micro). 0 change / 0 destroy. Budget escluso (billing
 commentato).
 
-**⛔ BLOCCANTE ATTUALE — auth account Google (apply NON eseguito):**
-- L'`apply` fallisce su `invalid_grant: Bad Request`. Le prime chiamate
-  (enable API, bucket, plan) erano andate; dopo un secondo
-  `application-default login` Google ha **revocato i token** dell'account
-  dedicato `t0t0m0ndlale010101@gmail.com` — sia ADC che CLI ora falliscono
-  (`gcloud auth application-default print-access-token` e
-  `gcloud projects describe` danno entrambi `invalid_grant`).
-- Causa: gmail **nuovo senza numero di telefono** → Google lo flagga
-  quando usato in automazione da IP server. Non risolvibile senza
-  aggiungere un telefono.
-- Tentato anche `GOOGLE_OAUTH_ACCESS_TOKEN` dal token CLI → backend GCS
-  risponde 401. Vicolo cieco con i token OAuth umani.
+**Auth account Google — RISOLTO:** l'account dedicato
+`t0t0m0ndlale010101@gmail.com` era stato flaggato (gmail nuovo senza
+telefono → token revocati, `invalid_grant` su ADC e CLI). **Roberto ha
+aggiunto un recovery phone** → l'account è stato sbloccato, ADC e CLI
+tornati validi. (Lezione comunque annotata nel playbook minion
+`gcp-project-bootstrap`: per control-plane headless preferire SA key /
+account rodato; il SA `terraform-cp` NON è stato creato, non è servito.)
 
-**DECISIONE IN SOSPESO (Roberto ci pensa):**
-- **Opzione consigliata:** operare gcloud/Terraform come
-  `robnovara@gmail.com` (account rodato, ha telefono). Passi: console
-  IAM del progetto → aggiungi `robnovara@gmail.com` come **Owner**; poi
-  sulla devbox `gcloud auth login` + `config set account/project` +
-  `application-default login` come robnovara. **Subito dopo creo un
-  service account `terraform-cp` con KEY** (gitignored, pattern già nel
-  `.gitignore`): la key del SA NON viene mai flaggata → Terraform diventa
-  stabile e indipendente dai token umani. Il progetto, il bucket e
-  l'**OAuth dell'app (8b) restano sull'account dedicato** — non si toccano.
-- **Alternativa:** aggiungere un telefono a `t0t0m0ndlale010101@gmail.com`
-  e rifare i login (rischio: numero già usato su altri account → rifiuto).
+**✅ `terraform apply` ESEGUITO — VM LIVE:**
+- 5 risorse create. Istanza `toto-mondiale` (e2-micro, us-central1-a),
+  IP egress `35.222.237.224`. SA `toto-mondiale-vm@…` con
+  `logging.logWriter`. VPC/subnet senza ingress.
+- **Join tailnet OK** (~100s dal boot): nome `toto-mondiale`, IP Tailscale
+  **`100.70.123.70`**, `tagged-devices` (tag:gcp).
+- **SSH via Tailscale verificato:** `ssh deploy@100.70.123.70` →
+  `user=deploy`, `SUDO_OK` (sudo passwordless), `BOOTSTRAP_DONE`,
+  tailscale 1.98.4. Nessuna porta pubblica, nessuna chiave (Tailscale SSH).
+- State Terraform nel bucket GCS. `terraform.tfvars` (gitignored) ha
+  project + tailscale_authkey.
 
-**RIPRESA (quando deciso):** ripristina un'auth funzionante → crea SA
-`terraform-cp` + key → `GOOGLE_APPLICATION_CREDENTIALS=<key> terraform
-apply` → la VM fa join tailnet → verifica `ssh deploy@toto-mondiale`
-(Tailscale) → `ghcr-publish` (build+push da devbox) → `ansible-playbook
-site.yml`. Aggiornare poi il playbook minion: per control-plane headless,
-preferire **SA key**, non ADC di account consumer (lezione sessione 8).
+**PROSSIMI PASSI (servono input da Roberto):**
+1. **`ghcr-publish`** — build immagine su devbox + push GHCR. Serve **PAT
+   GitHub** (`write:packages` per push da devbox; `read:packages` per
+   pull/Watchtower sulla VM).
+2. **`cloudflare-tunnel`** (slice #10) — dominio `t0t0m0ndlale.online` su
+   Cloudflare (nameserver) → Tunnel su Zero Trust → **tunnel token**.
+3. **`ansible-playbook site.yml`** — compila `inventory.ini`
+   (host=`100.70.123.70` o MagicDNS `toto-mondiale`, user `deploy`) +
+   `group_vars/all.yml` coi secret (`ghcr_*`, `airtable_api_token`,
+   `auth_*`, `tunnel_token`) via vault → hardening+docker+app+watchtower.
+4. **`oauth-prod-wiring`** — redirect URI prod + origin JS sul client OAuth.
+
+**Sicurezza auth key Tailscale:** è reusable e finisce in state/metadata.
+Opzionale dopo il join: revocarla/rigenerarla dall'admin Tailscale (il
+nodo resta su con la sua node key).
 
 ---
 
