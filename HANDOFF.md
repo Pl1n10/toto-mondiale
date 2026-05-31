@@ -45,10 +45,17 @@ state Terraform su **bucket GCS**, autodeploy via **Watchtower**.
 4. **#12 (Roberto + Claude)**: redirect URI prod + JS origin sul client
    OAuth Google, test login end-to-end. Playbook `oauth-prod-wiring`.
 
-**Tooling installato sulla devbox in sessione 8:** `terraform` 1.9.8 in
-`~/.local/bin`; `ansible-core`+`ansible-lint` in un venv usa-e-getta
-`/tmp/ansv` (per validare; NON persistente — ricrearlo o installare
-stabilmente alla prossima sessione). `gcloud` NON ancora installato.
+**Tooling installato STABILMENTE sulla devbox (sessione 8):**
+- `terraform` 1.9.8 → `~/.local/bin/terraform`
+- `ansible-core` 2.21.0 + `ansible-lint` 26.4.0 → via **pipx**, shim in
+  `~/.local/bin` (`ansible`, `ansible-playbook`, `ansible-galaxy`,
+  `ansible-lint`, …). Collection Galaxy in `~/.ansible/collections`.
+- `gcloud` (Cloud SDK 570.0.0) → rootless in `~/google-cloud-sdk`, PATH
+  aggiunto in `.bashrc` (nuove shell lo trovano; `gcloud auth
+  application-default login` ancora da fare — prereq slice #11).
+Tutto permanente: niente più venv `/tmp`. Validazione `infra/` rifatta
+verde dai binari stabili. (Aggiornata anche la tabella runtime nel
+`~/.claude/CLAUDE.md` globale.)
 
 ---
 
