@@ -24,6 +24,17 @@ state Terraform su **bucket GCS**, autodeploy via **Watchtower**.
 - `infra/README.md`: topologia + ordine operazioni + come validare
   offline. Compose/env di prod allineati a quelli root (slice #9) con
   l'aggiunta di Watchtower.
+- **Logging (decisione: gcplogs + helper).** Container → **Cloud
+  Logging** via driver Docker `gcplogs` (no agent, ~0 RAM; l'Ops Agent
+  è escluso perché troppo pesante su 1 GB). SA con `roles/logging.logWriter`
+  (`terraform/iam.tf`), API `logging.googleapis.com` da abilitare nel
+  bootstrap. Driver parametrizzato `app_log_driver` (default `gcplogs`,
+  `json-file` per target non-GCE) nel compose template. Helper devbox
+  `infra/scripts/tlogs` (`app`/`all`/`cf`/`wt`/`raw` via `gcloud logging
+  read`; `live`/`sys` via Tailscale SSH); config in `tlogs.env`
+  (gitignored). Playbook minion `gcp-deploy/logging.md.tmpl`. Render del
+  compose verificato (YAML valido, logging su tutti e 3 i servizi);
+  ansible-lint production + terraform validate verdi.
 - **minion** (`~/projects/minion`): famiglia `gcp-deploy/` (INDEX + 7
   playbook `.md.tmpl`: gcp-project-bootstrap, terraform-gce-vm,
   tailscale-join-vm, ghcr-publish, cloudflare-tunnel,

@@ -2,5 +2,8 @@
 app_dir: /opt/toto-mondiale
 app_image: ghcr.io/pl1n10/toto-mondiale:latest
 app_watchtower_poll_seconds: 300
+# Container log driver. gcplogs -> Cloud Logging (no agent) on a GCE VM.
+# Use json-file on a non-GCE target.
+app_log_driver: gcplogs
 # ghcr_user / ghcr_token and the airtable_*/auth_*/tunnel_token secrets are
 # the deployment contract — supplied via group_vars / vault, not role defaults.

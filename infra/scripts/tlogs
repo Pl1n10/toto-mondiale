@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# tlogs — read the GCP VM's logs comfortably from the devbox.
+#
+# Two sources:
+#   - Cloud Logging (durable, queryable): container stdout/stderr shipped by
+#     the Docker `gcplogs` driver. Survives a VM rebuild. Needs `gcloud`.
+#   - Tailscale SSH (live / system): real-time container tail and journald,
+#     pulled straight off the box.
+#
+# Config: edit infra/scripts/tlogs.env (gitignored) or export these:
+#   TOTO_PROJECT   GCP project id            (required for cloud commands)
+#   TOTO_HOST      Tailscale hostname        (default: toto-mondiale)
+#   TOTO_USER      ssh user                  (default: deploy)
+#   TOTO_APP_DIR   compose dir on the VM     (default: /opt/toto-mondiale)
+#
+# Usage:
+#   tlogs app   [N]     last N cloud entries for the app container (default 100)
+#   tlogs cf    [N]     same, cloudflared
+#   tlogs wt    [N]     same, watchtower
+#   tlogs all   [N]     all containers (cloud)
+#   tlogs raw '<filter>'  arbitrary Cloud Logging filter
+#   tlogs live  [svc]   live follow over Tailscale SSH (docker compose logs -f)
+#   tlogs sys   [N]     journald over Tailscale SSH (default 200, follows)
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+[ -f "$here/tlogs.env" ] && . "$here/tlogs.env"
+
+PROJECT="${TOTO_PROJECT:-}"
+HOST="${TOTO_HOST:-toto-mondiale}"
+USER_="${TOTO_USER:-deploy}"
+APP_DIR="${TOTO_APP_DIR:-/opt/toto-mondiale}"
+DRIVER_LOG='gcplogs-docker-driver'
+
+die() { echo "tlogs: $*" >&2; exit 1; }
+need_project() { [ -n "$PROJECT" ] || die "set TOTO_PROJECT (infra/scripts/tlogs.env)"; }
+
+# Cloud Logging read. $1 = extra filter (may be empty), $2 = limit.
+cloud_read() {
+  need_project
+  local extra="$1" limit="${2:-100}"
+  local filter="logName=\"projects/$PROJECT/logs/$DRIVER_LOG\""
+  [ -n "$extra" ] && filter="$filter AND $extra"
+  gcloud logging read "$filter" \
+    --project="$PROJECT" \
+    --limit="$limit" \
+    --freshness="${TOTO_FRESHNESS:-1d}" \
+    --order=asc \
+    --format='value(timestamp.date("%Y-%m-%d %H:%M:%S"), jsonPayload.container.name, jsonPayload.data)'
+}
+
+# Match a compose service by container name substring (names are
+# <project>-<service>-<n>, e.g. toto-mondiale-app-1).
+svc_filter() { echo "jsonPayload.container.name:\"-$1-\""; }
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  app)  cloud_read "$(svc_filter app)" "${1:-}";;
+  cf|cloudflared) cloud_read "$(svc_filter cloudflared)" "${1:-}";;
+  wt|watchtower)  cloud_read "$(svc_filter watchtower)" "${1:-}";;
+  all)  cloud_read "" "${1:-}";;
+  raw)  cloud_read "${1:?usage: tlogs raw '<filter>'}" "${2:-}";;
+  live)
+    svc="${1:-}"
+    ssh "$USER_@$HOST" "sudo docker compose -f $APP_DIR/docker-compose.yml logs -f --tail=200 $svc";;
+  sys)
+    ssh "$USER_@$HOST" "sudo journalctl -n ${1:-200} -f";;
+  ""|-h|--help|help)
+    sed -n '2,30p' "$0";;
+  *) die "unknown command '$cmd' (try: tlogs help)";;
+esac

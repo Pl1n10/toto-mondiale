@@ -11,6 +11,7 @@ hardening_fail2ban_enabled: true
 app_dir: /opt/toto-mondiale
 app_image: ghcr.io/pl1n10/toto-mondiale:latest
 app_watchtower_poll_seconds: 300
+app_log_driver: gcplogs # container logs -> Cloud Logging (no agent on GCE)
 
 # --- GHCR pull credentials (private package). Use a read-only PAT. ---
 ghcr_user: Pl1n10

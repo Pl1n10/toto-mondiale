@@ -24,7 +24,27 @@ GCP e2-micro (1 GB, Always Free, US region)
                  admin -> Tailscale SSH (egress)
   - app image pulled from GHCR (built on the devbox, never on the VM)
   - Watchtower polls GHCR and auto-updates :latest
+  - container logs -> Cloud Logging (gcplogs driver, no agent)
 ```
+
+## Logging
+
+Container `stdout/stderr` ship to **Cloud Logging** via the Docker
+`gcplogs` driver (no agent, ~0 RAM; the VM's service account gets
+`roles/logging.logWriter` in `terraform/iam.tf`). Logs are durable and
+survive a VM rebuild. Read them from the devbox with the helper:
+
+```bash
+cp scripts/tlogs.env.example scripts/tlogs.env   # fill TOTO_PROJECT etc.
+scripts/tlogs app            # last cloud entries for the app container
+scripts/tlogs all 200        # all containers
+scripts/tlogs live           # real-time tail over Tailscale SSH
+scripts/tlogs sys            # journald over Tailscale SSH
+```
+
+The driver is set per-service in the app role template (`app_log_driver`,
+default `gcplogs`; use `json-file` for a non-GCE target). See the minion
+`logging` playbook for the full rationale.
 
 ## Order of operations
 
@@ -37,6 +57,10 @@ GCP e2-micro (1 GB, Always Free, US region)
 5. **ansible** — `cd ansible && ansible-playbook site.yml`. Hardens the box,
    installs Docker, deploys the stack with the tunnel token + secrets.
 6. **wiring** — add the prod redirect URI to the Google OAuth client.
+
+Logging is cross-cutting: the IAM role is in `terraform/`, the API is
+enabled in bootstrap, the driver is set by the ansible app role, and you
+read it with `scripts/tlogs`.
 
 Each numbered step has a matching playbook in `minion`.
 
