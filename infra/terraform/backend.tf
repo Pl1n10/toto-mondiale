@@ -7,7 +7,7 @@
 # per-project so one bucket can hold many projects' state.
 terraform {
   backend "gcs" {
-    bucket = "CHANGE_ME-tfstate" # e.g. "rn-tfstate" — see gcp-project-bootstrap
+    bucket = "rn-tfstate-943229587559" # created 2026-05-31, see gcp-project-bootstrap
     prefix = "toto-mondiale/vm"
   }
 }
