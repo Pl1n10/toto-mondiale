@@ -68,6 +68,25 @@ Tutto permanente: niente più venv `/tmp`. Validazione `infra/` rifatta
 verde dai binari stabili. (Aggiornata anche la tabella runtime nel
 `~/.claude/CLAUDE.md` globale.)
 
+**GCP bootstrap ESEGUITO (sessione 8) — slice #11 parte 1:**
+- Account dedicato `t0t0m0ndlale010101@gmail.com`; progetto
+  `toto-mondiale` (number `943229587559`); billing attivo (account
+  `010620-50B760-DA5811`, crediti trail €257 fino al 28/08/2026).
+- API abilitate: compute, iam, logging, cloudbilling, billingbudgets,
+  storage, serviceusage.
+- ADC create (`~/.config/gcloud/application_default_credentials.json`),
+  quota project = `toto-mondiale`.
+- Bucket state Terraform: `gs://rn-tfstate-943229587559` (us-central1,
+  versioning on). `rn-tfstate` era già preso → suffisso col project
+  number. `backend.tf` cablato, `terraform init` verde (gcs backend,
+  provider google 6.50.0).
+- **NB gcloud nel mio Bash non-interattivo:** non è nel PATH (l'installer
+  lo mette in `.bashrc`, non caricato). Prefisso sempre
+  `export PATH="$HOME/google-cloud-sdk/bin:$PATH"`.
+- **Resta per `terraform apply`:** la **auth key Tailscale** (`tag:gcp`)
+  — unico bloccante per creare la VM. Budget alert opzionale: passare
+  `billing_account_id=010620-50B760-DA5811` in tfvars per attivarlo.
+
 ---
 
 **Stato al 2026-05-29 sessione 7.** **Decisione architetturale grossa:
