@@ -118,21 +118,42 @@ account rodato; il SA `terraform-cp` NON è stato creato, non è servito.)
 - State Terraform nel bucket GCS. `terraform.tfvars` (gitignored) ha
   project + tailscale_authkey.
 
-**PROSSIMI PASSI (servono input da Roberto):**
-1. **`ghcr-publish`** — build immagine su devbox + push GHCR. Serve **PAT
-   GitHub** (`write:packages` per push da devbox; `read:packages` per
-   pull/Watchtower sulla VM).
-2. **`cloudflare-tunnel`** (slice #10) — dominio `t0t0m0ndlale.online` su
-   Cloudflare (nameserver) → Tunnel su Zero Trust → **tunnel token**.
-3. **`ansible-playbook site.yml`** — compila `inventory.ini`
-   (host=`100.70.123.70` o MagicDNS `toto-mondiale`, user `deploy`) +
-   `group_vars/all.yml` coi secret (`ghcr_*`, `airtable_api_token`,
-   `auth_*`, `tunnel_token`) via vault → hardening+docker+app+watchtower.
-4. **`oauth-prod-wiring`** — redirect URI prod + origin JS sul client OAuth.
+**SECRET — quasi tutti GIÀ sulla devbox** (chiarito con Roberto: l'auth
+Google dell'app è la slice 8b, già fatta). In `.env.local` ci sono già:
+`AIRTABLE_API_TOKEN`, `AIRTABLE_BASE_ID`, `AUTH_GOOGLE_ID`,
+`AUTH_GOOGLE_SECRET`, `AUTH_SECRET`, `AUTH_URL`. Per il deploy:
+- Airtable + Google OAuth (ID/secret) → **riuso da `.env.local`**.
+- `AUTH_SECRET` di prod → **generarne uno fresco** (`openssl rand -base64
+  32`), non riusare quello di dev.
+- `AUTH_URL` → `https://t0t0m0ndlale.online`.
+
+**MANCA SOLO DA ROBERTO (2 cose):**
+1. **PAT GitHub per GHCR** (`write:packages` + `read:packages`) →
+   `ghcr-publish` (build su devbox + push) e pull/Watchtower sulla VM.
+2. **Tunnel token Cloudflare** (slice #10): dominio `t0t0m0ndlale.online`
+   aggiunto a Cloudflare (nameserver) → Tunnel su Zero Trust → token.
+
+**SEQUENZA DI RIPRESA (domani):**
+1. (Roberto) procura PAT GHCR + tunnel token.
+2. `ghcr-publish` — `docker build` + push `ghcr.io/pl1n10/toto-mondiale:latest`.
+3. Ansible: `inventory.ini` (host `100.70.123.70` o MagicDNS
+   `toto-mondiale`, user `deploy`) + `group_vars/all.yml`/vault coi secret
+   (riuso .env.local + ghcr_* + tunnel_token + AUTH_SECRET nuovo) →
+   `ansible-playbook site.yml` (hardening+docker+app+cloudflared+watchtower).
+4. Verifica tunnel Healthy + `https://t0t0m0ndlale.online`.
+5. `oauth-prod-wiring` — aggiungere redirect prod
+   `https://t0t0m0ndlale.online/api/auth/callback/google` + origin JS al
+   client OAuth esistente, poi test login.
 
 **Sicurezza auth key Tailscale:** è reusable e finisce in state/metadata.
 Opzionale dopo il join: revocarla/rigenerarla dall'admin Tailscale (il
 nodo resta su con la sua node key).
+
+**PAUSA 2026-05-31:** stop a fine giornata, stato salvato. La VM è viva
+e raggiungibile (`ssh deploy@100.70.123.70`). Per riprendere a freddo:
+leggere questo blocco + `git log --oneline`. NB: `gcloud`/`terraform` nel
+mio Bash non-interattivo vanno con
+`export PATH="$HOME/google-cloud-sdk/bin:$PATH"`.
 
 ---
 
