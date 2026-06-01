@@ -1,5 +1,66 @@
 # HANDOFF.md — Toto Mondiale
 
+**PAUSA 2026-06-01 (fine sessione) — BETA-READY. Si riprende domani.**
+Tutte le slice #1–#15 chiuse, app live su `https://t0t0m0ndlale.online`.
+
+**Stato lock Airtable (impostato da Roberto):** gironi **UNLOCKED** (fase
+compilazione), knockout **LOCKED**.
+
+**Pre-beta già fatto da Roberto:** base Airtable **duplicata** (backup),
+**punti di test azzerati**.
+
+**Dati tester (probe 2026-06-01):** Users = 6 (tutti con email → passano il
+gate login). Prediction Sets = 4, tutte linkate: **Roberto (1), Claudio
+Cipolletta (2), Andrea Navarro (1)**. Senza schedina: **Antonio Del Mondo,
+Stefano Squillante, Abele Grillo** → se inclusi nel beta, Cipo deve
+generare + linkare una schedina (campo `User`).
+
+**⏳ UNICO percorso di scrittura NON ancora verificato — da testare domani
+(Roberto):** il save dei "Pronostici speciali" (slice #15: Campione del
+Mondo + Capocannoniere). Da una schedina **owner**: scegli campione +
+nazione/giocatore → *Salva speciali* → verifica su Airtable "2. Prediction
+Sets" che `Predicted World Cup Winner` / `Predicted Top Scorer` si
+popolino. Se quei campi fossero lookup/read-only il PATCH fallirebbe → fix
+lato Airtable (tipo campo). Tutti gli altri save (gironi, knockout) sono
+già verdi end-to-end.
+
+**DECISIONE visibility (Roberto) — NON è un bug, NON "fixare":** col
+knockout lockato durante i gironi, `anyLocked=true`, quindi dal Tabellone è
+possibile aprire l'overview altrui. Il knockout altrui è **bianco**
+(bracket non ancora noto) → nessuna info. L'unico contenuto visibile
+sull'overview altrui in fase 1 sono i "Pronostici speciali". Roberto ha
+deciso che **va bene così per il beta**. (Se un domani li si volesse
+segreti fino al lock gironi: gate della "vista altrui" su
+`groupPredictionsLocked` invece di `anyLocked` in `lib/access.ts`
+`resolveSetAccess` + `app/scoreboard/page.tsx`. Non farlo senza richiesta.)
+
+**Piano beta a 7 step (Roberto):**
+1. Accessi ai tester + schedine assegnate (fatto).
+2. Tester compilano la fase 1: **gironi + Campione del Mondo + Capocannoniere**.
+3. **Lock gironi** → si aggiungono i risultati (~4 partite ogni 10 min) →
+   check che la classifica si aggiorni. NB: lo scoring "previsione esatta"
+   è **Airtable** (formule/automation); l'app mostra i valori correnti **al
+   refresh** (no push real-time). A fine partite: posizioni finali nei
+   gironi + check classifica.
+4. Si assegnano le **squadre qualificate** (Team A/B sui Knockout Match
+   R32) → **unlock knockout** → i tester rientrano e compilano
+   l'eliminazione (i round oltre R32 cascano dalle loro scelte).
+5. **Lock knockout** → aggiornamento tabellone partita per partita + check.
+   Dopo la finale: settare official **WC winner + capocannoniere** su
+   Teams/Players → check classifica finale.
+6. Check classifica finale.
+7. **Reset del Toto** (ripristino dati Airtable dal duplicato) + feedback
+   tester + risoluzione conflitti → apertura del gioco.
+
+**Promemoria operativi per domani:**
+- gcloud/terraform nel Bash non-interattivo: `export PATH="$HOME/google-cloud-sdk/bin:$PATH"`.
+- Logging: `infra/scripts/tlogs app|cf|wt [N]` (config in `tlogs.env`, gitignored).
+- Deploy di una fix: build su devbox → push GHCR → Watchtower autopull
+  (~5 min) **oppure** `docker compose pull && up -d` via Tailscale per averlo subito.
+- Working tree pulito, tutto su `origin/main`.
+
+---
+
 **Stato al 2026-06-01 sessione 9. 🎉 SLICE #11 CHIUSA — APP LIVE su
 `https://t0t0m0ndlale.online`.** Deploy end-to-end completato dal control
 plane devbox via Terraform (già applicato in sessione 8) + Ansible.
