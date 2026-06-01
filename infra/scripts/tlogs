@@ -47,7 +47,7 @@ cloud_read() {
     --limit="$limit" \
     --freshness="${TOTO_FRESHNESS:-1d}" \
     --order=asc \
-    --format='value(timestamp.date("%Y-%m-%d %H:%M:%S"), jsonPayload.container.name, jsonPayload.data)'
+    --format='value(timestamp.date("%Y-%m-%d %H:%M:%S"), jsonPayload.container.metadata."com.docker.compose.service", jsonPayload.message)'
 }
 
 # Match a compose service by container name substring (names are
