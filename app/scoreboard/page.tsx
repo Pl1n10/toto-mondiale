@@ -162,12 +162,6 @@ export default async function ScoreboardPage() {
             </table>
           </div>
         )}
-
-        <p className="mt-3 text-xs text-slate-400">
-          I punti sono calcolati da Airtable e si aggiornano man mano che le
-          partite vengono giocate. Ricarica per vedere l&apos;ultimo
-          aggiornamento.
-        </p>
       </main>
     </div>
   );
