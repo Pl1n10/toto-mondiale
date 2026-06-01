@@ -68,6 +68,12 @@ Users) e il dashboard #13 ora sono percorribili dal vivo.
 produzione su `https://t0t0m0ndlale.online` (VM GCP e2-micro, Cloudflare
 Tunnel, autodeploy Watchtower). Niente bloccanti aperti.
 
+**Rifiniture UI (2026-06-01):** tasto **Esci** nel dashboard (server
+action `signOut` → `/sign-in`); rimosso il record id grezzo dalle card
+(si mostra solo il `name`); restyle coerente (sfondo a gradiente in
+`layout.tsx`, header sticky, card emerald hover su dashboard, card +
+logo Google su sign-in). Build verde, immagine ridistribuita.
+
 **Idee post-MVP (non bloccanti, da valutare con Roberto/Cipo):**
 - Scoreboard "stage locked": quando Cipo blocca le fasi, il dashboard
   potrebbe mostrare anche le schedine altrui read-only (il visibility
