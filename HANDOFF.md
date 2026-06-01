@@ -57,14 +57,25 @@ elencava le schedine dell'utente. Roberto ha scelto il dashboard reale.
   `/sign-in`, banner mock sparito (0 occorrenze). La **lista vera** è
   testabile solo dopo il login (slice #12).
 
-**RESTA SOLO slice #12 (Roberto + Claude) — login NON ancora funzionante
-finché non fatto:** aggiungere al client OAuth Google esistente
-(console.cloud.google.com → Credentials → client `toto-mondiale-web`):
-- **Authorized redirect URI**: `https://t0t0m0ndlale.online/api/auth/callback/google`
-- **Authorized JavaScript origin**: `https://t0t0m0ndlale.online`
-Poi test login end-to-end con un'email presente in Airtable Users.
-Senza questo, il bottone "Accedi con Google" dà `redirect_uri_mismatch`.
-Playbook di riferimento: `oauth-prod-wiring`.
+**✅ Slice #12 — wiring OAuth prod (chiusa oggi).** Roberto ha aggiunto al
+client OAuth Google `toto-mondiale-web` il redirect URI prod
+(`https://t0t0m0ndlale.online/api/auth/callback/google`) + l'origin JS
+(`https://t0t0m0ndlale.online`). **Login end-to-end verificato in prod**
+(Roberto conferma; 0 errori nei log app). Il gate 8d (email in Airtable
+Users) e il dashboard #13 ora sono percorribili dal vivo.
+
+**🎉 PROGETTO COMPLETO E LIVE.** Tutte le slice #1–#13 chiuse. MVP in
+produzione su `https://t0t0m0ndlale.online` (VM GCP e2-micro, Cloudflare
+Tunnel, autodeploy Watchtower). Niente bloccanti aperti.
+
+**Idee post-MVP (non bloccanti, da valutare con Roberto/Cipo):**
+- Scoreboard "stage locked": quando Cipo blocca le fasi, il dashboard
+  potrebbe mostrare anche le schedine altrui read-only (il visibility
+  model 8f già lo supporta lato pagina; manca solo l'elenco nel
+  dashboard). Highlight schedina vincitrice (UX da decidere con Cipo).
+- Ruotare l'auth key Tailscale e/o il tunnel token (entrambi reusable).
+- PAT GHCR read-only dedicato per la VM (oggi riusa quello write).
+- Mirror Gitea homelab del repo (oggi solo GitHub).
 
 **Nota sicurezza:** auth key Tailscale e tunnel token sono riutilizzabili.
 Il tunnel token sta solo in `group_vars/all.yml` (gitignored) e in

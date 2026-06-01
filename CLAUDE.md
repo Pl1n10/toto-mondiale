@@ -193,9 +193,15 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
     `group_vars`/vault (`AIRTABLE_*`, `AUTH_SECRET`, `AUTH_GOOGLE_*`,
     `AUTH_URL`, `TUNNEL_TOKEN`). Runbook generici: famiglia
     `gcp-deploy` in `minion` (`templates/playbooks/`).
-12. ⏳ **Wiring prod (slice #12)** — redirect URI prod
+12. ✅ **Wiring prod (slice #12)** — redirect URI prod
     (`https://t0t0m0ndlale.online/api/auth/callback/google`) + origin JS
-    sul client OAuth Google, test login end-to-end (playbook
-    `oauth-prod-wiring`).
+    aggiunti al client OAuth Google. Login end-to-end verificato in prod
+    (2026-06-01).
+13. ✅ **Vero dashboard per-utente (slice #13)** — `/dashboard` dinamico
+    elenca le Prediction Sets dell'utente loggato
+    (`fetchPredictionSetsForUser`, ownership come 8f). Sostituisce il
+    placeholder di debug statico che mostrava il banner mock congelato.
+
+🎉 **MVP LIVE in produzione:** `https://t0t0m0ndlale.online`.
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.
