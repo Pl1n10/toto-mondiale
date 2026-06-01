@@ -1,10 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { SpecialPredictions } from '@/components/predictions/SpecialPredictions';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { resolveSetAccess } from '@/lib/access';
+import { fetchPlayers } from '@/lib/airtable/players';
 import { fetchPredictionSet } from '@/lib/airtable/predictionSets';
+import { fetchTeams } from '@/lib/airtable/teams';
+import type { Player, Team } from '@/types/domain';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,12 +36,29 @@ export default async function PredictionSetPage({ params }: PageProps) {
   let setNumber: number | undefined;
   let loadError: string | null = null;
   let allowed = true;
+  let teams: Team[] = [];
+  let players: Player[] = [];
+  let winnerTeamId: string | null = null;
+  let topScorerPlayerId: string | null = null;
+  // Special predictions lock with the group stage (must close before kickoff)
+  // and are editable only by the owner.
+  let specialReadOnly = true;
   try {
-    const set = await fetchPredictionSet(params.id);
+    const [set, t, p] = await Promise.all([
+      fetchPredictionSet(params.id),
+      fetchTeams(),
+      fetchPlayers(),
+    ]);
     setName = set.name;
     setNumber = set.predictionNumber;
+    teams = t;
+    players = p;
+    winnerTeamId = set.predictedWinnerTeamId ?? null;
+    topScorerPlayerId = set.predictedTopScorerPlayerId ?? null;
     // Slice #8f: own set always visible; other's set only once it locks.
-    allowed = (await resolveSetAccess(set)).allowed;
+    const access = await resolveSetAccess(set);
+    allowed = access.allowed;
+    specialReadOnly = !access.isOwner || set.groupPredictionsLocked === true;
   } catch (err) {
     loadError = err instanceof Error ? err.message : 'Unknown error';
   }
@@ -76,6 +97,19 @@ export default async function PredictionSetPage({ params }: PageProps) {
             <ErrorState
               title="Couldn't load prediction set metadata"
               message={loadError}
+            />
+          </div>
+        )}
+
+        {!loadError && (
+          <div className="mt-6">
+            <SpecialPredictions
+              predictionSetId={params.id}
+              teams={teams}
+              players={players}
+              initialWinnerTeamId={winnerTeamId}
+              initialTopScorerPlayerId={topScorerPlayerId}
+              readOnly={specialReadOnly}
             />
           </div>
         )}

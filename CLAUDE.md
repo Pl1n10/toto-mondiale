@@ -208,6 +208,14 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
     leader/own evidenziati; righe altrui apribili read-only solo quando
     l'admin blocca la fase (riusa il gating 8f). Punti read-only,
     `force-dynamic` → refresh-current.
+15. ✅ **Pronostici speciali (slice #15)** — Campione del Mondo +
+    Capocannoniere nella pagina overview `/prediction-set/[id]`. Scrivono
+    sul record di "2. Prediction Sets" (`Predicted World Cup Winner` →
+    Teams, `Predicted Top Scorer` → Players) via un singolo PATCH
+    (`updateSpecialPredictions`). Capocannoniere = picker a 2 step
+    **nazione → giocatore** (scala a ~1200 player senza liste lunghe).
+    Lock **in coppia coi gironi** (`groupPredictionsLocked`); editabile
+    solo dall'owner.
 
 🎉 **MVP LIVE in produzione:** `https://t0t0m0ndlale.online`.
 

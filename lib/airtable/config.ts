@@ -66,6 +66,14 @@ export const PREDICTION_SET_FIELDS = {
   totalPoints: 'Total Points',
 } as const;
 
+// WRITABLE on the Prediction Set record — the two "special" tournament-wide
+// predictions (slice #15). Linked-record fields: winner → Teams, top scorer
+// → Players. Everything else on this table is read-only here.
+export const PREDICTION_SET_WRITABLE_FIELDS: readonly string[] = [
+  PREDICTION_SET_FIELDS.predictedWinner,
+  PREDICTION_SET_FIELDS.predictedTopScorer,
+];
+
 export const GROUP_FIELDS = {
   groupName: 'Group Name',                     // e.g. "Group A".."Group L"
 } as const;

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { getRecord, listAllRecords } from './client';
+import { getRecord, listAllRecords, updateRecordsInBatches } from './client';
 import { getAirtableEnv, PREDICTION_SET_FIELDS, tableRef } from './config';
 import { mapPredictionSet } from './mappers';
 import { buildMockPredictionSet } from './mockData';
@@ -81,6 +81,49 @@ export async function fetchScoreboard(): Promise<PredictionSet[]> {
     if (diff !== 0) return diff;
     return (a.name ?? '').localeCompare(b.name ?? '');
   });
+}
+
+export interface SpecialPredictionsUpdate {
+  predictionSetId: string;
+  predictedWinnerTeamId: string | null;
+  predictedTopScorerPlayerId: string | null;
+}
+
+/**
+ * Write the two tournament-wide predictions onto the Prediction Set record
+ * itself (slice #15): World Cup Winner (→ Teams) and Top Scorer (→ Players).
+ * Both are linked-record fields — set to `[id]` to pick, `[]` to clear.
+ * Single-record PATCH; returns the re-mapped set. Throws on failure.
+ */
+export async function updateSpecialPredictions(
+  input: SpecialPredictionsUpdate,
+): Promise<PredictionSet> {
+  const { isConfigured } = getAirtableEnv();
+  if (!isConfigured) {
+    return {
+      ...buildMockPredictionSet(input.predictionSetId),
+      predictedWinnerTeamId: input.predictedWinnerTeamId ?? undefined,
+      predictedTopScorerPlayerId: input.predictedTopScorerPlayerId ?? undefined,
+    };
+  }
+
+  const fields: Record<string, string[]> = {
+    [PREDICTION_SET_FIELDS.predictedWinner]: input.predictedWinnerTeamId
+      ? [input.predictedWinnerTeamId]
+      : [],
+    [PREDICTION_SET_FIELDS.predictedTopScorer]: input.predictedTopScorerPlayerId
+      ? [input.predictedTopScorerPlayerId]
+      : [],
+  };
+
+  const { successRecords, failures } = await updateRecordsInBatches(
+    tableRef('predictionSets'),
+    [{ id: input.predictionSetId, fields }],
+  );
+  if (failures.length > 0 || successRecords.length === 0) {
+    throw new Error(failures[0]?.error ?? 'Failed to save special predictions');
+  }
+  return mapPredictionSet(successRecords[0]);
 }
 
 export type LockKind = 'group' | 'knockout';

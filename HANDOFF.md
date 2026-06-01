@@ -102,6 +102,29 @@ World Cup Winner/Total Points` — calcolati da Airtable, noi solo letti.
 - NB visibility: il Tabellone (lista punti) è visibile a ogni utente
   loggato; il gate scatta solo sull'APERTURA di una schedina altrui.
 
+**🆕 Slice #15 — Pronostici speciali (chiusa 2026-06-01).** Mancavano
+Campione del Mondo + Capocannoniere. Decisione Roberto: posizione = sezione
+nell'overview `/prediction-set/[id]`; capocannoniere = picker a 2 step
+nazione→giocatore; lock in coppia coi gironi.
+- Scrivono sul record di "2. Prediction Sets": `Predicted World Cup Winner`
+  (→ Teams) e `Predicted Top Scorer` (→ Players), già mappati. Whitelist
+  `PREDICTION_SET_WRITABLE_FIELDS` (antipattern). Save = singolo PATCH via
+  `updateSpecialPredictions` (linked field: `[id]` per scegliere, `[]` per
+  azzerare).
+- Nuovi: `lib/airtable/players.ts` (`fetchPlayers`, mock incluso),
+  `fetchTeams` in `teams.ts`, `mapTeam`/`mapPlayer`,
+  `specialPredictionSchema`, action `saveSpecialPredictions`
+  (`app/prediction-set/[id]/actions.ts`: Zod → ownership → lock 'group' →
+  PATCH), client `components/predictions/SpecialPredictions.tsx`.
+- Picker capocannoniere a 2 step: select nazione (solo team con ≥1 player)
+  → select giocatore filtrato. Scala a ~1200 player (oggi 183) senza liste
+  lunghe. Campione = select 48 squadre.
+- `readOnly` = non-owner OPPURE `groupPredictionsLocked`. Build verde,
+  immagine ridistribuita.
+- ⏳ **Da fare (Roberto):** test salvataggio end-to-end da una schedina TUA
+  (scegli campione + nazione/giocatore → Salva → verifica su Airtable che
+  `Predicted World Cup Winner`/`Predicted Top Scorer` si popolino).
+
 **Idee post-MVP (non bloccanti, da valutare con Roberto/Cipo):**
 - Scoreboard "stage locked": quando Cipo blocca le fasi, il dashboard
   potrebbe mostrare anche le schedine altrui read-only (il visibility

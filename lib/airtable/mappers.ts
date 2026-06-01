@@ -3,7 +3,9 @@ import {
   GROUP_ORDER_PREDICTION_FIELDS,
   KNOCKOUT_MATCH_FIELDS,
   KNOCKOUT_PREDICTION_FIELDS,
+  PLAYER_FIELDS,
   PREDICTION_SET_FIELDS,
+  TEAM_FIELDS,
   USER_FIELDS,
 } from './config';
 import type { AirtableRecord } from '@/types/airtable';
@@ -13,7 +15,9 @@ import type {
   GroupOrderPrediction,
   KnockoutMatch,
   KnockoutPrediction,
+  Player,
   PredictionSet,
+  Team,
   User,
 } from '@/types/domain';
 
@@ -154,5 +158,23 @@ export function mapKnockoutMatch(record: AirtableRecord): KnockoutMatch {
     slotBLabel: firstString(f[KNOCKOUT_MATCH_FIELDS.slotBLabel]) ?? '',
     teamAId: firstLinkedId(f[KNOCKOUT_MATCH_FIELDS.teamA]),
     teamBId: firstLinkedId(f[KNOCKOUT_MATCH_FIELDS.teamB]),
+  };
+}
+
+export function mapTeam(record: AirtableRecord): Team {
+  const f = record.fields;
+  return {
+    id: record.id,
+    name: firstString(f[TEAM_FIELDS.name]) ?? '?',
+    group: firstString(f[TEAM_FIELDS.group]),
+  };
+}
+
+export function mapPlayer(record: AirtableRecord): Player {
+  const f = record.fields;
+  return {
+    id: record.id,
+    name: firstString(f[PLAYER_FIELDS.name]) ?? '?',
+    teamId: firstLinkedId(f[PLAYER_FIELDS.team]),
   };
 }
