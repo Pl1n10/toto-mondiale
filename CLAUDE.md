@@ -181,7 +181,8 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
     `t0t0m0ndlale.online` (registrato 2026-05-29) → aggiungere a
     Cloudflare (cambio nameserver), Tunnel dal dashboard Zero Trust →
     tunnel token.
-11. ⏳ **Deploy GCP via IaC (slice #11)** — control plane sulla **devbox**.
+11. ✅ **Deploy GCP via IaC (slice #11)** — APP LIVE su
+    `https://t0t0m0ndlale.online` (2026-06-01). Control plane sulla **devbox**.
     `infra/terraform/` provisiona VM **e2-micro Always Free** (Ubuntu
     24.04, regione US), VPC senza ingress, service account least-priv,
     startup-script che fa join **Tailscale** (`--ssh`); state su **bucket

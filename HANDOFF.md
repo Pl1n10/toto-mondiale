@@ -1,5 +1,57 @@
 # HANDOFF.md — Toto Mondiale
 
+**Stato al 2026-06-01 sessione 9. 🎉 SLICE #11 CHIUSA — APP LIVE su
+`https://t0t0m0ndlale.online`.** Deploy end-to-end completato dal control
+plane devbox via Terraform (già applicato in sessione 8) + Ansible.
+
+**Cosa è stato fatto oggi:**
+- `ghcr-publish`: immagine `ghcr.io/pl1n10/toto-mondiale:latest` buildata
+  sulla devbox e pushata su GHCR (**package privato**, confermato da
+  Roberto). Login GHCR via PAT classic (`write:packages`).
+- Secret risolti in `infra/ansible/` (tutti **gitignored**):
+  - `inventory.ini`: host `100.70.123.70` (Tailscale), user `deploy`.
+  - `group_vars/all.yml`: airtable/google OAuth riusati da `.env.local`,
+    **`AUTH_SECRET` di prod FRESCO** (`openssl rand -base64 32`, NON il
+    dev), `auth_url=https://t0t0m0ndlale.online`, `tunnel_token` (slice
+    #10, preso da Cloudflare Zero Trust), `ghcr_*` (PAT recuperato dal
+    `~/.docker/config.json` dopo il login).
+- `ansible-playbook site.yml` verde (`failed=0`): hardening (swap 2 GB,
+  sshd, unattended-upgrades, fail2ban) + Docker + app stack (app +
+  cloudflared + watchtower). 3 container **Up e stabili**.
+- Verifiche: `https://t0t0m0ndlale.online` → 307 (middleware → sign-in),
+  `/sign-in` → 200, `/api/auth/providers` → Google con callback prod,
+  tunnel cloudflared connesso (QUIC/HTTP2 pass). Nessuna porta pubblica.
+
+**4 bug REALI corretti nell'IaC oggi (committati con questo step):**
+1. `ansible.cfg`: callback `community.general.yaml` rimosso in v12 →
+   `stdout_callback=default` + `result_format=yaml`.
+2. `roles/app/tasks/main.yml`: app dir chownata a `{{ ghcr_user|lower }}`
+   (`pl1n10`, utente di sistema inesistente) → `{{ ansible_user }}`
+   (`deploy`).
+3. `roles/hardening/tasks/main.yml`: `mkswap` rifaceva e falliva su
+   re-run con `/swapfile` già montato → check `swapon --show` + `when`
+   gate su format+enable (idempotente).
+4. `roles/app/templates/docker-compose.prod.yml.j2`: watchtower
+   `--poll-interval` (flag inesistente) → `--interval`; aggiunta env
+   `DOCKER_API_VERSION=1.44` perché `containrrr/watchtower` negozia API
+   Docker 1.25, troppo vecchia per il daemon nuovo (min 1.40).
+
+**RESTA SOLO slice #12 (Roberto + Claude) — login NON ancora funzionante
+finché non fatto:** aggiungere al client OAuth Google esistente
+(console.cloud.google.com → Credentials → client `toto-mondiale-web`):
+- **Authorized redirect URI**: `https://t0t0m0ndlale.online/api/auth/callback/google`
+- **Authorized JavaScript origin**: `https://t0t0m0ndlale.online`
+Poi test login end-to-end con un'email presente in Airtable Users.
+Senza questo, il bottone "Accedi con Google" dà `redirect_uri_mismatch`.
+Playbook di riferimento: `oauth-prod-wiring`.
+
+**Nota sicurezza:** auth key Tailscale e tunnel token sono riutilizzabili.
+Il tunnel token sta solo in `group_vars/all.yml` (gitignored) e in
+`.env.production` sulla VM (mode 0600). File temp `~/.tt` sulla devbox da
+cancellare (conteneva il tunnel token).
+
+---
+
 **Stato al 2026-05-31 sessione 8. Deploy ridisegnato come IaC dal
 control plane (devbox).** Decisione: invece del setup manuale della VM,
 le slice #11/#12 diventano **Terraform + Ansible** versionati in

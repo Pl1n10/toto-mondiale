@@ -46,7 +46,11 @@ services:
   watchtower:
     image: containrrr/watchtower:latest
     restart: unless-stopped
-    command: --label-enable --cleanup --poll-interval {{ app_watchtower_poll_seconds }}
+    command: --label-enable --cleanup --interval {{ app_watchtower_poll_seconds }}
+    environment:
+      # containrrr/watchtower negotiates Docker API 1.25, too old for a modern
+      # daemon (min 1.40). Pin a supported version explicitly.
+      DOCKER_API_VERSION: "1.44"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Reuse the GHCR login written by `docker login` so Watchtower can pull

@@ -3,7 +3,7 @@
   ansible.builtin.file:
     path: "{{ app_dir }}"
     state: directory
-    owner: "{{ ghcr_user | lower }}"
+    owner: "{{ ansible_user }}"
     mode: "0750"
   become: true
 

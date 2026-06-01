@@ -13,14 +13,23 @@
     group: root
     mode: "0600"
 
+# mkswap refuses to format an already-mounted swap file, so skip format +
+# enable when /swapfile is already active (idempotent re-runs).
+- name: Check active swap devices
+  ansible.builtin.command: swapon --show=NAME --noheadings
+  register: hardening_active_swap
+  changed_when: false
+
 - name: Format swap file
   ansible.builtin.command: mkswap /swapfile
+  when: "'/swapfile' not in hardening_active_swap.stdout"
   register: hardening_mkswap
   changed_when: "'Setting up swapspace' in hardening_mkswap.stdout"
   failed_when: hardening_mkswap.rc != 0 and 'Setting up swapspace' not in hardening_mkswap.stdout
 
 - name: Enable swap now
   ansible.builtin.command: swapon /swapfile
+  when: "'/swapfile' not in hardening_active_swap.stdout"
   register: hardening_swapon
   changed_when: hardening_swapon.rc == 0
   failed_when: hardening_swapon.rc != 0 and 'already' not in (hardening_swapon.stderr | default(''))
