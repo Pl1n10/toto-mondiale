@@ -36,6 +36,27 @@ plane devbox via Terraform (già applicato in sessione 8) + Ansible.
    `DOCKER_API_VERSION=1.44` perché `containrrr/watchtower` negozia API
    Docker 1.25, troppo vecchia per il daemon nuovo (min 1.40).
 
+**🆕 Slice #13 — vero dashboard per-utente (chiusa oggi).** Andando in
+prod è emerso che `/dashboard` era un placeholder di debug: (1) statico,
+quindi prerenderizzato al `docker build` senza env Airtable → mostrava
+sempre il banner "mock data" e l'ID `recDebugMock000` congelati; (2) non
+elencava le schedine dell'utente. Roberto ha scelto il dashboard reale.
+- `lib/airtable/predictionSets.ts`: nuova `fetchPredictionSetsForUser(email)`
+  — email sessione → `findUserByEmail` (Airtable Users) → filtra le
+  Prediction Sets per `userId === me.id` (stessa ownership di
+  `checkOwnershipGuard`/8f), ordina per `predictionNumber`. Mock path
+  conserva un set fittizio quando Airtable non è configurato.
+- `app/dashboard/page.tsx`: riscritta come server component **dinamico**
+  (`export const dynamic = 'force-dynamic'` → legge env+sessione a
+  runtime). Se Airtable è configurato e manca la sessione → `redirect`
+  a `/sign-in`. Elenca "Le tue schedine" con link a
+  `/prediction-set/[id]`; empty-state "contatta l'amministratore".
+- Verde: typecheck + build (ora `/dashboard` è `ƒ Dynamic`, non più `○`).
+  Immagine ribuildata + pushata su GHCR (digest `d304b0e…`), VM
+  ridistribuita. Verificato in prod: `/dashboard` senza sessione → 307
+  `/sign-in`, banner mock sparito (0 occorrenze). La **lista vera** è
+  testabile solo dopo il login (slice #12).
+
 **RESTA SOLO slice #12 (Roberto + Claude) — login NON ancora funzionante
 finché non fatto:** aggiungere al client OAuth Google esistente
 (console.cloud.google.com → Credentials → client `toto-mondiale-web`):

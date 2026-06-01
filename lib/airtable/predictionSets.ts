@@ -1,9 +1,10 @@
 import 'server-only';
 
-import { getRecord } from './client';
-import { getAirtableEnv, tableRef } from './config';
+import { getRecord, listAllRecords } from './client';
+import { getAirtableEnv, PREDICTION_SET_FIELDS, tableRef } from './config';
 import { mapPredictionSet } from './mappers';
 import { buildMockPredictionSet } from './mockData';
+import { findUserByEmail } from './users';
 import type { PredictionSet } from '@/types/domain';
 
 export async function fetchPredictionSet(id: string): Promise<PredictionSet> {
@@ -11,6 +12,40 @@ export async function fetchPredictionSet(id: string): Promise<PredictionSet> {
   if (!isConfigured) return buildMockPredictionSet(id);
   const record = await getRecord(tableRef('predictionSets'), id);
   return mapPredictionSet(record);
+}
+
+/**
+ * The prediction sets owned by the logged-in user (dashboard, slice #13).
+ *
+ * Ownership mirrors {@link checkOwnershipGuard}: session email → Airtable
+ * Users row → `PredictionSet.User` linked id. The Prediction Sets table is
+ * tiny (~20 rows), so we list all and filter in memory (D-007). Returns
+ * them sorted by prediction number. On dev/mock (Airtable unconfigured)
+ * returns a single mock set so the dashboard stays usable without creds.
+ */
+export async function fetchPredictionSetsForUser(
+  email: string,
+): Promise<PredictionSet[]> {
+  const { isConfigured } = getAirtableEnv();
+  if (!isConfigured) return [buildMockPredictionSet('recDebugMock000')];
+
+  const me = await findUserByEmail(email);
+  if (!me) return [];
+
+  const records = await listAllRecords(tableRef('predictionSets'), {
+    fields: [
+      PREDICTION_SET_FIELDS.user,
+      PREDICTION_SET_FIELDS.name,
+      PREDICTION_SET_FIELDS.predictionNumber,
+      PREDICTION_SET_FIELDS.groupPredictionsLocked,
+      PREDICTION_SET_FIELDS.knockoutPredictionsLocked,
+    ],
+  });
+
+  return records
+    .map(mapPredictionSet)
+    .filter((set) => set.userId === me.id)
+    .sort((a, b) => (a.predictionNumber ?? 0) - (b.predictionNumber ?? 0));
 }
 
 export type LockKind = 'group' | 'knockout';

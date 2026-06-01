@@ -1,17 +1,37 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
+import { auth } from '@/lib/auth';
 import { getAirtableEnv } from '@/lib/airtable/config';
+import { fetchPredictionSetsForUser } from '@/lib/airtable/predictionSets';
+import type { PredictionSet } from '@/types/domain';
 
-const FALLBACK_DEBUG_ID = 'recDebugMock000';
+// Reads runtime env + the session per request; never prerender at build
+// (otherwise `isConfigured` and the list freeze to build-time values).
+export const dynamic = 'force-dynamic';
 
-export default function DashboardPage() {
-  const { debugPredictionSetId, isConfigured } = getAirtableEnv();
-  const predictionSetId = debugPredictionSetId || FALLBACK_DEBUG_ID;
+function setLabel(set: PredictionSet): string {
+  if (set.name) return set.name;
+  if (set.predictionNumber != null) return `Schedina #${set.predictionNumber}`;
+  return set.id;
+}
+
+export default async function DashboardPage() {
+  const { isConfigured } = getAirtableEnv();
+  const session = await auth();
+  const email = session?.user?.email ?? null;
+
+  // With Airtable live, the dashboard is for logged-in users only.
+  if (isConfigured && !email) redirect('/sign-in');
+
+  const sets = await fetchPredictionSetsForUser(email ?? '');
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-bold">Toto Mondiale</h1>
-      <p className="mt-1 text-sm text-gray-600">World Cup prediction frontend</p>
+      <p className="mt-1 text-sm text-gray-600">
+        World Cup prediction frontend
+      </p>
 
       {!isConfigured && (
         <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
@@ -23,22 +43,35 @@ export default function DashboardPage() {
       )}
 
       <section className="mt-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Debug prediction set
-        </h2>
-        <Link
-          href={`/prediction-set/${predictionSetId}`}
-          className="mt-2 block rounded-lg border p-4 transition hover:bg-gray-50"
-        >
-          <div className="text-sm text-gray-500">ID</div>
-          <div className="font-mono">{predictionSetId}</div>
-          {!debugPredictionSetId && (
-            <div className="mt-2 text-xs text-gray-500">
-              Set <code className="font-mono">DEBUG_PREDICTION_SET_ID</code> in{' '}
-              <code className="font-mono">.env.local</code> to point at a real record.
-            </div>
-          )}
-        </Link>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Le tue schedine
+          </h2>
+          {email && <span className="text-xs text-gray-400">{email}</span>}
+        </div>
+
+        {sets.length === 0 ? (
+          <p className="mt-3 rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+            Non hai ancora schedine collegate al tuo account. Se pensi sia un
+            errore, contatta l&apos;amministratore.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {sets.map((set) => (
+              <li key={set.id}>
+                <Link
+                  href={`/prediction-set/${set.id}`}
+                  className="block rounded-lg border p-4 transition hover:bg-gray-50"
+                >
+                  <div className="font-medium">{setLabel(set)}</div>
+                  <div className="mt-1 font-mono text-xs text-gray-400">
+                    {set.id}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );
