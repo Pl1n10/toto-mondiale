@@ -72,7 +72,35 @@ Tunnel, autodeploy Watchtower). Niente bloccanti aperti.
 action `signOut` → `/sign-in`); rimosso il record id grezzo dalle card
 (si mostra solo il `name`); restyle coerente (sfondo a gradiente in
 `layout.tsx`, header sticky, card emerald hover su dashboard, card +
-logo Google su sign-in). Build verde, immagine ridistribuita.
+logo Google su sign-in). Poi esteso a TUTTA l'esperienza: `AppHeader`
+condiviso (brand + email + Esci) su dashboard e pagine prediction;
+overview/gironi/knockout con header coerente e card; pill su palette
+slate/emerald; SaveBar/LockBanner/ErrorState/LoadingState on-palette.
+Build verde, immagine ridistribuita. Diagramma architettura in
+`docs/architecture.md` (mermaid, render su GitHub).
+
+**🆕 Slice #14 — Tabellone + bivio dashboard (chiusa 2026-06-01).**
+Richiesta Roberto/Cipo. I punti ESISTONO GIÀ come campi numerici su "2.
+Prediction Sets" (probe): `Group Match/Group Order/Knockout/Top Scorer/
+World Cup Winner/Total Points` — calcolati da Airtable, noi solo letti.
+- Mapping: 6 campi punti in `PREDICTION_SET_FIELDS`, tipo
+  `PredictionPoints` + `PredictionSet.points`, `mapPredictionSet` li
+  legge (default 0). Mock aggiornato.
+- `fetchScoreboard()` in `predictionSets.ts`: lista TUTTE le schedine coi
+  punti, ordina per `points.total` desc poi nome.
+- `/dashboard` → **bivio** (2 card): 🏆 Tabellone (`/scoreboard`) e 📝 Le
+  tue schedine (`/my-predictions`, dove è migrata la lista della #13).
+- `/scoreboard`: tabella nome + 5 parziali (GM/GO/KO/TS/WC, nascosti su
+  mobile) + Tot; leader (total>0) in ambra, riga propria in emerald +
+  badge "Tu". Riga apribile (link a `/prediction-set/[id]`) se **propria**
+  o se la schedina ha **una fase lockata** (riusa il gating 8f via
+  `resolveSetAccess` sulla pagina target); altrimenti nome con 🔒 non
+  cliccabile. Punti `force-dynamic` → refresh mostra lo stato corrente.
+- Probe dati reali: 4 schedine, Cipolletta in testa (60 Group Order
+  Points, dati di test), le altre a 0. Build verde, ridistribuita; le 3
+  route nuove → 307 a sign-in senza login.
+- NB visibility: il Tabellone (lista punti) è visibile a ogni utente
+  loggato; il gate scatta solo sull'APERTURA di una schedina altrui.
 
 **Idee post-MVP (non bloccanti, da valutare con Roberto/Cipo):**
 - Scoreboard "stage locked": quando Cipo blocca le fasi, il dashboard

@@ -57,6 +57,13 @@ export const PREDICTION_SET_FIELDS = {
   predictedTopScorer: 'Predicted Top Scorer',
   groupPredictionsLocked: 'Group Predictions Locked?',
   knockoutPredictionsLocked: 'Knockout Predictions Locked?',
+  // Score fields — computed by Airtable, read-only here (slice #14 scoreboard).
+  groupMatchPoints: 'Group Match Points',
+  groupOrderPoints: 'Group Order Points',
+  knockoutPoints: 'Knockout Points',
+  topScorerPoints: 'Top Scorer Points',
+  worldCupWinnerPoints: 'World Cup Winner Points',
+  totalPoints: 'Total Points',
 } as const;
 
 export const GROUP_FIELDS = {

@@ -69,6 +69,14 @@ export function buildMockPredictionSet(id: string): PredictionSet {
     name: 'Mock prediction set',
     groupPredictionsLocked: false,
     knockoutPredictionsLocked: false,
+    points: {
+      groupMatch: 0,
+      groupOrder: 0,
+      knockout: 0,
+      topScorer: 0,
+      worldCupWinner: 0,
+      total: 0,
+    },
   };
 }
 

@@ -4,40 +4,43 @@ import { redirect } from 'next/navigation';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { auth } from '@/lib/auth';
 import { getAirtableEnv } from '@/lib/airtable/config';
-import { fetchPredictionSetsForUser } from '@/lib/airtable/predictionSets';
-import type { PredictionSet } from '@/types/domain';
 
-// Reads runtime env + the session per request; never prerender at build
-// (otherwise `isConfigured` and the list freeze to build-time values).
 export const dynamic = 'force-dynamic';
 
-function setLabel(set: PredictionSet): string {
-  if (set.name) return set.name;
-  if (set.predictionNumber != null) return `Schedina #${set.predictionNumber}`;
-  return set.id;
-}
+const CHOICES = [
+  {
+    href: '/scoreboard',
+    icon: '🏆',
+    title: 'Tabellone',
+    blurb: 'La classifica di tutte le schedine, punti per fase e totale.',
+  },
+  {
+    href: '/my-predictions',
+    icon: '📝',
+    title: 'Le tue schedine',
+    blurb: 'Compila o rivedi i pronostici del tuo account.',
+  },
+];
 
 export default async function DashboardPage() {
   const { isConfigured } = getAirtableEnv();
   const session = await auth();
   const email = session?.user?.email ?? null;
 
-  // With Airtable live, the dashboard is for logged-in users only.
+  // With Airtable live, the home is for logged-in users only.
   if (isConfigured && !email) redirect('/sign-in');
-
-  const sets = await fetchPredictionSetsForUser(email ?? '');
 
   return (
     <div className="min-h-screen">
       <AppHeader />
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-6">
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <div className="mb-8">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Le tue schedine
+            Toto Mondiale
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Scegli una schedina per compilare o rivedere i tuoi pronostici.
+            Dove vuoi andare?
           </p>
         </div>
 
@@ -47,42 +50,26 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {sets.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-            <p className="text-sm text-slate-600">
-              Non hai ancora schedine collegate al tuo account.
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              Se pensi sia un errore, contatta l&apos;amministratore.
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {sets.map((set) => (
-              <li key={set.id}>
-                <Link
-                  href={`/prediction-set/${set.id}`}
-                  className="group flex h-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold text-slate-900">
-                      {setLabel(set)}
-                    </div>
-                    <div className="mt-1 text-xs font-medium text-emerald-600">
-                      Apri la schedina
-                    </div>
-                  </div>
-                  <span
-                    aria-hidden
-                    className="text-lg text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500"
-                  >
-                    →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {CHOICES.map((c) => (
+            <Link
+              key={c.href}
+              href={c.href}
+              className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+            >
+              <span className="text-3xl" aria-hidden>
+                {c.icon}
+              </span>
+              <span className="mt-3 text-lg font-semibold text-slate-900">
+                {c.title}
+              </span>
+              <span className="mt-1 text-sm text-slate-500">{c.blurb}</span>
+              <span className="mt-4 text-xs font-medium text-emerald-600">
+                Apri →
+              </span>
+            </Link>
+          ))}
+        </div>
       </main>
     </div>
   );

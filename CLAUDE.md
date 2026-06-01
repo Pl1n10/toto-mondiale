@@ -197,10 +197,17 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
     (`https://t0t0m0ndlale.online/api/auth/callback/google`) + origin JS
     aggiunti al client OAuth Google. Login end-to-end verificato in prod
     (2026-06-01).
-13. ✅ **Vero dashboard per-utente (slice #13)** — `/dashboard` dinamico
-    elenca le Prediction Sets dell'utente loggato
-    (`fetchPredictionSetsForUser`, ownership come 8f). Sostituisce il
-    placeholder di debug statico che mostrava il banner mock congelato.
+13. ✅ **Vero dashboard per-utente (slice #13)** — elenco delle Prediction
+    Sets dell'utente loggato (`fetchPredictionSetsForUser`, ownership come
+    8f). Sostituisce il placeholder di debug statico col banner mock
+    congelato. (Ora la lista vive su `/my-predictions`; vedi slice #14.)
+14. ✅ **Tabellone + bivio dashboard (slice #14)** — `/dashboard` è un
+    bivio (🏆 Tabellone → `/scoreboard`, 📝 Le tue schedine →
+    `/my-predictions`). `/scoreboard` (`fetchScoreboard`) elenca TUTTE le
+    schedine coi punti Airtable (5 parziali + Total), ordinate per totale,
+    leader/own evidenziati; righe altrui apribili read-only solo quando
+    l'admin blocca la fase (riusa il gating 8f). Punti read-only,
+    `force-dynamic` → refresh-current.
 
 🎉 **MVP LIVE in produzione:** `https://t0t0m0ndlale.online`.
 

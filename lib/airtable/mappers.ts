@@ -76,6 +76,14 @@ export function mapPredictionSet(record: AirtableRecord): PredictionSet {
     predictedTopScorerPlayerId: firstLinkedId(f[PREDICTION_SET_FIELDS.predictedTopScorer]),
     groupPredictionsLocked: f[PREDICTION_SET_FIELDS.groupPredictionsLocked] === true,
     knockoutPredictionsLocked: f[PREDICTION_SET_FIELDS.knockoutPredictionsLocked] === true,
+    points: {
+      groupMatch: firstNumber(f[PREDICTION_SET_FIELDS.groupMatchPoints]) ?? 0,
+      groupOrder: firstNumber(f[PREDICTION_SET_FIELDS.groupOrderPoints]) ?? 0,
+      knockout: firstNumber(f[PREDICTION_SET_FIELDS.knockoutPoints]) ?? 0,
+      topScorer: firstNumber(f[PREDICTION_SET_FIELDS.topScorerPoints]) ?? 0,
+      worldCupWinner: firstNumber(f[PREDICTION_SET_FIELDS.worldCupWinnerPoints]) ?? 0,
+      total: firstNumber(f[PREDICTION_SET_FIELDS.totalPoints]) ?? 0,
+    },
   };
 }
 

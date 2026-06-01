@@ -48,6 +48,41 @@ export async function fetchPredictionSetsForUser(
     .sort((a, b) => (a.predictionNumber ?? 0) - (b.predictionNumber ?? 0));
 }
 
+/**
+ * Every prediction set with its (Airtable-computed) points, ranked by total
+ * desc then by name — the scoreboard (slice #14). Points are read-only here;
+ * Airtable recomputes them as matches are played, so a fresh load shows the
+ * current standings. On dev/mock returns a small fixed leaderboard.
+ */
+export async function fetchScoreboard(): Promise<PredictionSet[]> {
+  const { isConfigured } = getAirtableEnv();
+  if (!isConfigured) {
+    return [buildMockPredictionSet('recDebugMock000')];
+  }
+
+  const records = await listAllRecords(tableRef('predictionSets'), {
+    fields: [
+      PREDICTION_SET_FIELDS.user,
+      PREDICTION_SET_FIELDS.name,
+      PREDICTION_SET_FIELDS.predictionNumber,
+      PREDICTION_SET_FIELDS.groupPredictionsLocked,
+      PREDICTION_SET_FIELDS.knockoutPredictionsLocked,
+      PREDICTION_SET_FIELDS.groupMatchPoints,
+      PREDICTION_SET_FIELDS.groupOrderPoints,
+      PREDICTION_SET_FIELDS.knockoutPoints,
+      PREDICTION_SET_FIELDS.topScorerPoints,
+      PREDICTION_SET_FIELDS.worldCupWinnerPoints,
+      PREDICTION_SET_FIELDS.totalPoints,
+    ],
+  });
+
+  return records.map(mapPredictionSet).sort((a, b) => {
+    const diff = (b.points?.total ?? 0) - (a.points?.total ?? 0);
+    if (diff !== 0) return diff;
+    return (a.name ?? '').localeCompare(b.name ?? '');
+  });
+}
+
 export type LockKind = 'group' | 'knockout';
 
 /** Defense-in-depth server-side check (D-022 step b). Re-fetches the

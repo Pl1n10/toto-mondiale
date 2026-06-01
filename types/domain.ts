@@ -22,6 +22,16 @@ export interface Player {
   teamId?: RecordId;
 }
 
+/** Per-category scores, computed by Airtable and read-only in the app. */
+export interface PredictionPoints {
+  groupMatch: number;
+  groupOrder: number;
+  knockout: number;
+  topScorer: number;
+  worldCupWinner: number;
+  total: number;
+}
+
 export interface PredictionSet {
   id: RecordId;
   predictionNumber?: number;
@@ -32,6 +42,8 @@ export interface PredictionSet {
   // Optional lock flags; not used in MVP but kept here so the type is forward-compatible.
   groupPredictionsLocked?: boolean;
   knockoutPredictionsLocked?: boolean;
+  /** Scoreboard points (slice #14). Absent on mock data. */
+  points?: PredictionPoints;
 }
 
 /** Totocalcio-style outcome: home win / draw / away win. */
