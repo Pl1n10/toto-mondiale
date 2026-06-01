@@ -47,11 +47,18 @@ Airtable adapter ← config (mapping campi), client (HTTP+paging+batch),
 
 1. `~/.claude/CLAUDE.md` (global)
 2. `./CLAUDE.md` (questo file)
-3. `./HANDOFF.md` (stato corrente del task)
-4. `./DECISIONS.md` se servono motivazioni di scelte architetturali
-5. `./ANTIPATTERNS.md` se stai per toccare l'adapter o la save flow
-6. `./AIRTABLE_INFO_KNOCKOUT.md` se stai per partire con lo slice #3
+3. `./STATE.md` — **snapshot corrente** (leggi PER PRIMO per allinearti a
+   freddo: stato live, lock, prossima azione, fase beta)
+4. `./HANDOFF.md` (narrativa per-sessione + storia + decisioni di dettaglio)
+5. `./DECISIONS.md` se servono motivazioni di scelte architetturali
+6. `./ANTIPATTERNS.md` se stai per toccare l'adapter o la save flow
 7. `git log --oneline -n 10` + `git status`
+
+> **Convenzione documentazione (per ridurre l'attrito degli update):**
+> l'aggiornamento di routine va in `STATE.md` (corto, economico).
+> `HANDOFF.md` si appende SOLO quando c'è una decisione o una slice reale
+> da registrare — non per housekeeping. Così l'update quotidiano è leggero
+> e `HANDOFF.md` smette di gonfiarsi.
 
 ## Comandi per lo stato verde
 
