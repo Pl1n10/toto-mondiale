@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { UnifiedGroupTable } from '@/components/predictions/UnifiedGroupTable';
+import { AppHeader } from '@/components/ui/AppHeader';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LockBanner } from '@/components/ui/LockBanner';
 import { resolveSectionAccess } from '@/lib/access';
@@ -17,22 +18,29 @@ interface PageProps {
 
 export default async function GroupsPage({ params }: PageProps) {
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6">
-      <header className="mb-4">
-        <Link
-          href={`/prediction-set/${params.id}`}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          ← Back to prediction set
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">Group predictions</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Per ogni girone: pronostico 1/X/2 sulle 6 partite e ordine finale 1·2·3·4.
-        </p>
-      </header>
+    <div className="min-h-screen">
+      <AppHeader />
 
-      <Content predictionSetId={params.id} />
-    </main>
+      <main className="mx-auto max-w-4xl px-4 py-8">
+        <header className="mb-6">
+          <Link
+            href={`/prediction-set/${params.id}`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-emerald-600"
+          >
+            ← Torna alla schedina
+          </Link>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
+            Pronostici gironi
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Per ogni girone: pronostico 1/X/2 sulle 6 partite e ordine finale
+            1·2·3·4.
+          </p>
+        </header>
+
+        <Content predictionSetId={params.id} />
+      </main>
+    </div>
   );
 }
 
@@ -84,8 +92,8 @@ async function Content({ predictionSetId }: { predictionSetId: string }) {
   return (
     <>
       {setName && (
-        <p className="mb-4 text-sm text-gray-600">
-          Set: <span className="font-medium">{setName}</span>
+        <p className="mb-4 text-sm text-slate-500">
+          Schedina: <span className="font-medium text-slate-700">{setName}</span>
           {setNumber != null && ` (#${setNumber})`}
         </p>
       )}

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { auth, signOut } from '@/lib/auth';
+import { AppHeader } from '@/components/ui/AppHeader';
+import { auth } from '@/lib/auth';
 import { getAirtableEnv } from '@/lib/airtable/config';
 import { fetchPredictionSetsForUser } from '@/lib/airtable/predictionSets';
 import type { PredictionSet } from '@/types/domain';
@@ -26,40 +27,9 @@ export default async function DashboardPage() {
 
   const sets = await fetchPredictionSetsForUser(email ?? '');
 
-  async function doSignOut() {
-    'use server';
-    await signOut({ redirectTo: '/sign-in' });
-  }
-
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xl" aria-hidden>
-              🏆
-            </span>
-            <span className="text-base font-bold tracking-tight text-slate-900">
-              Toto Mondiale
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            {email && (
-              <span className="hidden text-xs text-slate-500 sm:inline">
-                {email}
-              </span>
-            )}
-            <form action={doSignOut}>
-              <button
-                type="submit"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
-              >
-                Esci
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-6">

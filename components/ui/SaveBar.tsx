@@ -30,13 +30,13 @@ export function SaveBar({
   }[message?.kind ?? 'info'];
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-white/95 backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/90 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex flex-col text-sm">
-          <span>
+          <span className="font-medium text-slate-700">
             {dirtyCount > 0
-              ? `${dirtyCount} row${dirtyCount === 1 ? '' : 's'} modified`
-              : 'No changes'}
+              ? `${dirtyCount} modific${dirtyCount === 1 ? 'a' : 'he'} da salvare`
+              : 'Nessuna modifica'}
           </span>
           {message && <span className={`text-xs ${messageColor}`}>{message.text}</span>}
         </div>
@@ -44,9 +44,9 @@ export function SaveBar({
           type="button"
           onClick={onSave}
           disabled={disabled}
-          className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+          className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
         >
-          {isSaving ? 'Saving…' : 'Save predictions'}
+          {isSaving ? 'Salvataggio…' : 'Salva pronostici'}
         </button>
       </div>
     </div>

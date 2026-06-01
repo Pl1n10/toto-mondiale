@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { KnockoutTable } from '@/components/predictions/KnockoutTable';
+import { AppHeader } from '@/components/ui/AppHeader';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LockBanner } from '@/components/ui/LockBanner';
 import { resolveSectionAccess } from '@/lib/access';
@@ -40,12 +41,15 @@ export default async function KnockoutPage({ params }: PageProps) {
     readOnly = access.readOnly;
   } catch (err) {
     return (
-      <main className="mx-auto max-w-4xl px-4 py-6">
-        <ErrorState
-          title="Couldn't load knockout predictions"
-          message={err instanceof Error ? err.message : 'Unknown error'}
-        />
-      </main>
+      <div className="min-h-screen">
+        <AppHeader />
+        <main className="mx-auto max-w-4xl px-4 py-8">
+          <ErrorState
+            title="Couldn't load knockout predictions"
+            message={err instanceof Error ? err.message : 'Unknown error'}
+          />
+        </main>
+      </div>
     );
   }
 
@@ -55,29 +59,35 @@ export default async function KnockoutPage({ params }: PageProps) {
   const teamNames: Record<RecordId, string> = Object.fromEntries(teamsMap);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6">
-      <header className="mb-4">
-        <Link
-          href={`/prediction-set/${params.id}`}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          ← Back to prediction set
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">Knockout predictions</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Pick the winner of each match. Later rounds unlock automatically as
-          you fill the earlier ones.
-        </p>
-      </header>
+    <div className="min-h-screen">
+      <AppHeader />
 
-      {readOnly && <LockBanner />}
-      <KnockoutTable
-        predictionSetId={params.id}
-        predictions={predictions}
-        matches={matches}
-        teamNames={teamNames}
-        readOnly={readOnly}
-      />
-    </main>
+      <main className="mx-auto max-w-4xl px-4 py-8">
+        <header className="mb-6">
+          <Link
+            href={`/prediction-set/${params.id}`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-emerald-600"
+          >
+            ← Torna alla schedina
+          </Link>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
+            Pronostici eliminazione
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Scegli chi vince ogni sfida. I turni successivi si sbloccano da soli
+            man mano che compili quelli precedenti.
+          </p>
+        </header>
+
+        {readOnly && <LockBanner />}
+        <KnockoutTable
+          predictionSetId={params.id}
+          predictions={predictions}
+          matches={matches}
+          teamNames={teamNames}
+          readOnly={readOnly}
+        />
+      </main>
+    </div>
   );
 }

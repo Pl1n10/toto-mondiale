@@ -333,16 +333,20 @@ export function KnockoutTable({
   }
 
   return (
-    <div className="space-y-8 pb-32">
+    <div className="space-y-5 pb-32">
       {PHASE_TITLES.map(([phaseKey, title]) => {
         const phaseMatches = phaseGroups.get(phaseKey) ?? [];
         if (phaseMatches.length === 0) return null;
         return (
-          <section key={phaseKey}>
-            <h2 className="sticky top-0 z-10 mb-2 border-b bg-white/95 py-1 text-lg font-semibold backdrop-blur">
+          <section
+            key={phaseKey}
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+          >
+            <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-slate-900">
+              <span className="inline-block h-4 w-1 rounded-full bg-emerald-500" />
               {title}
             </h2>
-            <ul className="divide-y">
+            <ul className="divide-y divide-slate-100">
               {phaseMatches.map((km) => {
                 const d = drafts.get(km.matchNumber);
                 if (!d) return null;
@@ -357,7 +361,7 @@ export function KnockoutTable({
                   if (showAmber) return 'bg-amber-400';
                   if (d.status === 'saved') return 'bg-emerald-500';
                   if (d.status === 'dirty') return 'bg-gray-400';
-                  return 'bg-transparent border border-gray-200';
+                  return 'bg-transparent border border-slate-300';
                 })();
                 const dotTooltip = (() => {
                   if (d.errorMessage) return d.errorMessage;
@@ -378,14 +382,14 @@ export function KnockoutTable({
                         title={dotTooltip}
                         aria-label={`status: ${dotTooltip}`}
                       />
-                      <span className="text-sm font-medium text-gray-800">
+                      <span className="text-sm font-medium text-slate-700">
                         {km.matchName}
                       </span>
                     </div>
                     <div
                       role="radiogroup"
                       aria-label={`${km.matchName} predicted winner`}
-                      className="inline-flex overflow-hidden rounded border border-gray-300"
+                      className="inline-flex overflow-hidden rounded-lg border border-slate-300"
                     >
                       {([
                         { team: slotATeamId, label: km.slotALabel },
@@ -404,9 +408,9 @@ export function KnockoutTable({
                           ? d.status === 'saved'
                             ? `${base} bg-emerald-500 text-white`
                             : showAmber
-                            ? `${base} bg-amber-400 text-gray-900`
-                            : `${base} bg-gray-800 text-white`
-                          : `${base} bg-white text-gray-700 hover:bg-gray-100`;
+                            ? `${base} bg-amber-400 text-slate-900`
+                            : `${base} bg-slate-900 text-white`
+                          : `${base} bg-white text-slate-700 hover:bg-slate-100`;
                         return (
                           <button
                             key={idx}

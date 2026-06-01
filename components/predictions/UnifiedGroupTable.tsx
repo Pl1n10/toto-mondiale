@@ -36,7 +36,7 @@ const RESULT_OPTIONS: ReadonlyArray<GroupMatchResult> = ['1', 'X', '2'];
 const RANK_OPTIONS = [1, 2, 3, 4] as const;
 
 const DOT_CLASS: Record<RowStatus, string> = {
-  clean: 'bg-transparent border border-gray-200',
+  clean: 'bg-transparent border border-slate-300',
   dirty: 'bg-amber-400',
   saving: 'bg-blue-400 animate-pulse',
   saved: 'bg-emerald-500',
@@ -366,17 +366,21 @@ export function UnifiedGroupTable({
   }
 
   return (
-    <div className="space-y-10 pb-32">
+    <div className="space-y-5 pb-32">
       {groupedView.map(({ group, matches, order }) => (
-        <section key={group}>
-          <h2 className="sticky top-0 z-10 mb-2 border-b bg-white/95 py-1 text-lg font-semibold backdrop-blur">
+        <section
+          key={group}
+          className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+        >
+          <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-900">
+            <span className="inline-block h-4 w-1 rounded-full bg-emerald-500" />
             {group}
           </h2>
 
           {matches.length > 0 && (
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase text-gray-500">
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
                   <th className="w-6"></th>
                   <th className="py-1 text-right pr-3">Home</th>
                   <th className="w-40 text-center">1 / X / 2</th>
@@ -388,7 +392,7 @@ export function UnifiedGroupTable({
                   const d = matchDrafts.get(p.id);
                   if (!d) return null;
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50">
+                    <tr key={p.id} className="hover:bg-slate-50">
                       <td className="py-1">
                         <span
                           className={`inline-block h-2 w-2 rounded-full ${DOT_CLASS[d.status]}`}
@@ -401,7 +405,7 @@ export function UnifiedGroupTable({
                         <div
                           role="radiogroup"
                           aria-label={`${p.homeTeamName} vs ${p.awayTeamName} prediction`}
-                          className="inline-flex overflow-hidden rounded border border-gray-300"
+                          className="inline-flex overflow-hidden rounded-lg border border-slate-300"
                         >
                           {RESULT_OPTIONS.map((opt) => {
                             const selected = d.result === opt;
@@ -412,8 +416,8 @@ export function UnifiedGroupTable({
                                 ? `${base} bg-red-500 text-white`
                                 : d.status === 'saved'
                                 ? `${base} bg-emerald-500 text-white`
-                                : `${base} bg-gray-800 text-white`
-                              : `${base} bg-white text-gray-700 hover:bg-gray-100`;
+                                : `${base} bg-slate-900 text-white`
+                              : `${base} bg-white text-slate-700 hover:bg-slate-100`;
                             return (
                               <button
                                 key={opt}
@@ -445,7 +449,7 @@ export function UnifiedGroupTable({
           {order.length > 0 && (
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase text-gray-500">
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
                   <th className="w-6"></th>
                   <th className="py-1 pr-3">Team</th>
                   <th className="w-56 text-center">Predicted rank</th>
@@ -462,7 +466,7 @@ export function UnifiedGroupTable({
                     : d.errorMessage ?? effectiveStatus;
                   const disabled = readOnly || d.status === 'saving';
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50">
+                    <tr key={p.id} className="hover:bg-slate-50">
                       <td className="py-1">
                         <span
                           className={`inline-block h-2 w-2 rounded-full ${DOT_CLASS[effectiveStatus]}`}
@@ -475,7 +479,7 @@ export function UnifiedGroupTable({
                         <div
                           role="radiogroup"
                           aria-label={`${p.teamName} predicted rank`}
-                          className="inline-flex overflow-hidden rounded border border-gray-300"
+                          className="inline-flex overflow-hidden rounded-lg border border-slate-300"
                         >
                           {RANK_OPTIONS.map((opt) => {
                             const selected = d.rank === opt;
@@ -486,8 +490,8 @@ export function UnifiedGroupTable({
                                 ? `${base} bg-red-500 text-white`
                                 : effectiveStatus === 'saved'
                                 ? `${base} bg-emerald-500 text-white`
-                                : `${base} bg-gray-800 text-white`
-                              : `${base} bg-white text-gray-700 hover:bg-gray-100`;
+                                : `${base} bg-slate-900 text-white`
+                              : `${base} bg-white text-slate-700 hover:bg-slate-100`;
                             return (
                               <button
                                 key={opt}
