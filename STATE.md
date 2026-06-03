@@ -71,6 +71,16 @@ In attesa del **beta a 3 utenti**.
   store è sempre armato) **+ self-set incoraggiato** (pagina gated-Google
   che la sovrascrive, banner nudge). Resend resta **fuori** (annotato come
   opzione futura non scelta). Piano step-by-step → `HANDOFF.md` "Piano TD-2".
+- [ ] **TD-3 — Banner annunci admin da Airtable** (idea, NON ancora
+  pianificata). Avvisi tipo "la fase 1 chiude tra 2 giorni" / "fase chiusa"
+  / "fine torneo" mostrati **in-app** in cima a dashboard/scoreboard,
+  pilotati da un campo testo che **Cipo edita su Airtable** (es. su "11.
+  Counter" o una mini tabella "Announcements"); appare live (pagine già
+  `force-dynamic`). Stesso pattern del Mozzarella Counter, **zero infra
+  nuova / zero email / zero deliverability**. È l'alternativa a Resend per
+  gli annunci di fase: **complementa** la mail/WhatsApp di Cipo (raggiunge
+  chi apre l'app), non la sostituisce. Resend tenuto fuori (si ripagherebbe
+  solo a centinaia di utenti + push-in-inbox + scadenze modellate a dato).
 
 ## Decisioni "non toccare" (sono scelte, non bug)
 - **Visibility in fase 1:** col knockout lockato, l'overview altrui è
