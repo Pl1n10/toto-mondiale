@@ -15,12 +15,73 @@
   **sospeso automaticamente** per sospetta violazione ToS → appeal →
   reinstated, con upgrade a paid account richiesto. VM resta in Always
   Free (0 €). Dettaglio in `STATE.md` → "Incidente Google".
-- **Backlog resilienza (idee, NON decise):** TD-1 failover prod su devbox
-  (stesso container + 2º connettore `cloudflared` sullo stesso tunnel →
-  failover Cloudflare senza DNS) e TD-2 emergency auth door (Credentials
-  provider Auth.js dietro flag env OFF-by-default: email utente + password
-  condivisa, authz invariato via Airtable Users, JWT/no-DB → **non**
-  viola Google-only). Specifiche in `STATE.md` → "Backlog / resilienza".
+- **Backlog resilienza:** TD-1 failover prod su devbox (stesso container +
+  2º connettore `cloudflared` sullo stesso tunnel → failover Cloudflare
+  senza DNS, *idea non ancora pianificata*) e TD-2 emergency auth door
+  (**forma decisa, piano pronto sotto**: Credentials provider Auth.js
+  dietro flag OFF-by-default, **password per-utente** con hash su Airtable
+  Users, no-DB/no-Resend). Backlog in `STATE.md` → "Backlog / resilienza".
+
+## Piano TD-2 — Emergency auth door (PRONTO, non ancora eseguito)
+
+> Deciso il 2026-06-03 con Roberto. Si costruirà più avanti; qui c'è il
+> piano già masticato così la prossima sessione parte senza ridiscuterlo.
+
+**Principio (perché NON viola gli anti-pattern "Google-only / no-DB / no
+magic-link"):** è un **2º fattore di authn d'emergenza**, non un ritorno a
+Prisma/Resend. Resta un **Credentials provider Auth.js con sessione JWT**
+(nessun database), l'hash della password vive su **Airtable Users** (lo
+store identità che già usiamo), la **distribuzione è self-service** (niente
+email → niente Resend). L'authz è **invariato**: l'email deve essere in
+Users (gate 8d), e identità JWT identica a quella che produce Google così
+`middleware.ts` e la visibility 8f non cambiano.
+
+**Modello di default deciso:** pw emergenziale **generata per tutti** (lo
+store è sempre armato, nessuno resta hard-locked) **+ self-set
+incoraggiato** che la sovrascrive (banner nudge finché l'utente non la
+personalizza). La consegna del default generato resta manuale **solo per i
+ritardatari** che non hanno fatto self-set — non per tutti.
+
+**Step:**
+1. **Airtable (Cipo):** aggiungere a "1. Users" il campo
+   `Emergency Password Hash` (long text). Scrivibile col PAT esistente.
+2. **config/mappers:** `USER_FIELDS.emergencyPasswordHash` +
+   (`USER_WRITABLE_FIELDS` per il PATCH) + leggerlo in `mapUser`.
+3. **Hashing lib:** scegliere `bcryptjs` (puro JS, semplice) o argon2.
+   `authorize()` gira in Node runtime → ok. Confermare quale.
+4. **`lib/auth.ts`:** registrare un **Credentials provider** accanto a
+   Google **solo se** `process.env.EMERGENCY_AUTH === '1'`. `authorize()`:
+   normalizza email → `findUserByEmail` (assente ⇒ reject) → hash vuoto ⇒
+   reject → `verify(hash, password)` ⇒ ok/reject. Emette lo **stesso**
+   shape JWT di Google.
+5. **`/sign-in`:** quando `EMERGENCY_AUTH=1` mostra anche il form
+   email+password (oltre al bottone Google). OFF ⇒ invariata (solo Google).
+6. **Pagina self-set** (`/account` o riquadro `/dashboard`), **gated da
+   sessione Google normale**: form "imposta/aggiorna password di
+   emergenza" → server action → hash → PATCH su Users. **Banner nudge**
+   finché il campo è vuoto.
+7. **Script devbox `emergency-pw-gen`** (dormiente): genera pw random per
+   gli utenti senza hash (o `--all`), scrive gli hash in batch
+   (`updateRecordsInBatches`), **stampa una volta** la plaintext per la
+   consegna manuale ai ritardatari. Dry-run di default, idempotente.
+8. **Runbook attivazione:** seed hash → `EMERGENCY_AUTH=1` nell'env prod
+   (VM compose) → `up -d`. Rientro: rimuovi il flag → (opz.) svuota gli
+   hash (revoca pulita, per-utente).
+
+**Decision point ancora aperti (chiudere prima di buildare):** libreria
+hashing (bcryptjs vs argon2); home della pagina self-set (`/account` nuova
+vs riquadro dashboard); seed-all all'onboarding vs seed-on-demand
+all'incidente; rate-limit sul tentativo emergency (Cloudflare vs in-app).
+
+**Test (tutto mockato, nessuna chiamata reale):** `authorize()` tabellare
+(email assente / hash vuoto / hash giusto / hash sbagliato); flag OFF ⇒
+provider non registrato (solo Google); server action self-set (scrive
+hash, sovrascrive il precedente); Airtable mockato. Verde:
+`npm run typecheck && npm run build`.
+
+**Resend:** tenuto **fuori** — col self-service non serve nemmeno a 20-30
+utenti. Resta annotato come opzione futura *non scelta* (se un domani si
+volesse un reset-via-email automatico per centinaia di utenti).
 
 **PAUSA 2026-06-01 (fine sessione) — BETA-READY. Si riprende domani.**
 Tutte le slice #1–#15 chiuse, app live su `https://t0t0m0ndlale.online`.

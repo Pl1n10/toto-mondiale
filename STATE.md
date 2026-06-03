@@ -59,15 +59,18 @@ In attesa del **beta a 3 utenti**.
   DNS**). Da decidere: warm-standby sempre acceso vs runbook on-demand;
   sync dei secret `.env` sulla devbox. Runbook candidato → famiglia
   `gcp-deploy` in `minion`.
-- [ ] **TD-2 — Emergency auth door.** Se Google OAuth cade, un flag env
-  (OFF di default) abilita un **Credentials provider** Auth.js: l'utente
-  entra con la **sua email** + una **password condivisa** decisa da noi
-  (non conosciamo le loro credenziali Google). Authz **invariato**:
-  l'email deve essere in Airtable Users (gate 8d), sessione JWT, **niente
-  DB** → NON viola "Google-only / no DB" (è un 2º fattore di *authn*
-  d'emergenza, non un ritorno a magic-link/Prisma). Cautele: flag default
-  OFF, password ruotata dopo l'uso, rate-limit, hash della password in
-  env-secret (mai in chiaro nel repo).
+- [ ] **TD-2 — Emergency auth door** (forma decisa, **piano pronto in
+  HANDOFF**, non ancora buildata). Se Google OAuth cade, un flag env
+  `EMERGENCY_AUTH` (OFF di default) abilita un **Credentials provider**
+  Auth.js: l'utente entra con la **sua email** + una **password per-utente**.
+  Hash salvato sul campo `Emergency Password Hash` di **Airtable Users**
+  (lo store esiste già → **niente DB nuovo**, **niente Resend**). Authz
+  **invariato** (email in Users, gate 8d; sessione JWT) → NON viola
+  "Google-only / no DB" (è un 2º fattore di *authn* d'emergenza, non un
+  ritorno a magic-link/Prisma). **Default: pw generata per tutti** (lo
+  store è sempre armato) **+ self-set incoraggiato** (pagina gated-Google
+  che la sovrascrive, banner nudge). Resend resta **fuori** (annotato come
+  opzione futura non scelta). Piano step-by-step → `HANDOFF.md` "Piano TD-2".
 
 ## Decisioni "non toccare" (sono scelte, non bug)
 - **Visibility in fase 1:** col knockout lockato, l'overview altrui è
