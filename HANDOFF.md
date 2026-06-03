@@ -1,5 +1,27 @@
 # HANDOFF.md — Toto Mondiale
 
+**AGGIORNAMENTO 2026-06-03 — slice #16 live + incidente Google + backlog resilienza.**
+- **Slice #16 (Montepremi Finale / Mozzarella Counter):** chiusa e
+  **deployata in prod** (commit `8959c36`, immagine GHCR digest
+  `612d2850…`, VM gira quel digest, sito 307 → sign-in atteso). La
+  scoreboard mostra, sotto "🏆 Tabellone" e prima della classifica, il
+  banner "🧀 Montepremi Finale: <N Mozzarelle>" letto live da Airtable
+  ("11. Counter" → `Mozzarella Counter`, formula `{Total Prediction Sets}
+  * 5 & " Mozzarelle"`, stringa già formattata). Table ID e tipo campo
+  **dedotti via Metadata API** (token locale), non chiesti a Cipo.
+  Rimosso il vecchio sottotitolo del Tabellone. Dettagli → `CLAUDE.md`
+  roadmap #16, `STATE.md`.
+- **Incidente Google (2026-06-02):** account ad-hoc del progetto
+  **sospeso automaticamente** per sospetta violazione ToS → appeal →
+  reinstated, con upgrade a paid account richiesto. VM resta in Always
+  Free (0 €). Dettaglio in `STATE.md` → "Incidente Google".
+- **Backlog resilienza (idee, NON decise):** TD-1 failover prod su devbox
+  (stesso container + 2º connettore `cloudflared` sullo stesso tunnel →
+  failover Cloudflare senza DNS) e TD-2 emergency auth door (Credentials
+  provider Auth.js dietro flag env OFF-by-default: email utente + password
+  condivisa, authz invariato via Airtable Users, JWT/no-DB → **non**
+  viola Google-only). Specifiche in `STATE.md` → "Backlog / resilienza".
+
 **PAUSA 2026-06-01 (fine sessione) — BETA-READY. Si riprende domani.**
 Tutte le slice #1–#15 chiuse, app live su `https://t0t0m0ndlale.online`.
 
