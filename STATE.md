@@ -8,15 +8,24 @@
 > `HANDOFF.md` si appende SOLO per decisioni/slice reali, non per
 > housekeeping.
 
-**Aggiornato:** 2026-06-01 (fine sessione — beta-ready)
+**Aggiornato:** 2026-06-03 (slice #16 — Montepremi Finale / Mozzarella Counter)
 
 ## In una riga
-App completa e **LIVE** su `https://t0t0m0ndlale.online`. Slice #1–#15
-chiuse. In attesa del **beta a 3 utenti**.
+App completa e **LIVE** su `https://t0t0m0ndlale.online`. Slice #1–#16
+chiuse (#16 = Montepremi Finale / Mozzarella Counter sulla scoreboard).
+In attesa del **beta a 3 utenti**.
 
 ## Infra (dove gira / come intervenire)
 - VM GCP e2-micro · Tailscale `100.70.123.70` · Cloudflare Tunnel ·
   Watchtower autodeploy · immagine `ghcr.io/pl1n10/toto-mondiale`
+- **Billing (2026-06-02):** progetto freezato da Google per sospetta
+  violazione ToS, appeal → **reinstated**. Google ha richiesto l'upgrade
+  a **paid account** (condizione del reinstatement). Cipo ha chiuso il
+  trial e impostato i **budget alert**. VM resta dentro l'**Always Free**
+  (e2-micro / us-central1 / 30 GB pd-standard) → baseline 0 €. Motivazione
+  ToS mai esposta (link "Cloud Logging" rotto, nessuna entry nei log).
+  Se ricapita: la e2-micro NON si riaccende da sola, va dato
+  `gcloud compute instances start toto-mondiale --zone us-central1-a`.
 - Deploy di una fix: build su devbox → push GHCR →
   `docker compose pull && up -d` via Tailscale (o Watchtower ~5 min)
 - Log: `infra/scripts/tlogs app|cf|wt [N]`

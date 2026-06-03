@@ -5,6 +5,7 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { auth } from '@/lib/auth';
 import { getAirtableEnv } from '@/lib/airtable/config';
+import { fetchMozzarellaCounter } from '@/lib/airtable/counter';
 import { fetchScoreboard } from '@/lib/airtable/predictionSets';
 import { findUserByEmail } from '@/lib/airtable/users';
 import type { PredictionSet, RecordId } from '@/types/domain';
@@ -30,10 +31,14 @@ export default async function ScoreboardPage() {
   if (isConfigured && !email) redirect('/sign-in');
 
   let sets: PredictionSet[] = [];
+  let mozzarella: string | null = null;
   let meId: RecordId | null = null;
   let loadError: string | null = null;
   try {
-    sets = await fetchScoreboard();
+    [sets, mozzarella] = await Promise.all([
+      fetchScoreboard(),
+      fetchMozzarellaCounter(),
+    ]);
     if (isConfigured && email) {
       const me = await findUserByEmail(email);
       meId = me?.id ?? null;
@@ -60,10 +65,12 @@ export default async function ScoreboardPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             🏆 Tabellone
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Classifica per punti totali. Apri una schedina per vederla (le
-            altrui solo quando l&apos;admin sblocca la fase).
-          </p>
+          {mozzarella && (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+              <span aria-hidden>🧀</span>
+              <span>Montepremi Finale: {mozzarella}</span>
+            </div>
+          )}
         </div>
 
         {loadError ? (

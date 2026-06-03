@@ -224,6 +224,17 @@ Estratti da `ANTIPATTERNS.md`, qui per visibilità:
     Lock **in coppia coi gironi** (`groupPredictionsLocked`); editabile
     solo dall'owner.
 
+16. ✅ **Montepremi Finale / Mozzarella Counter (slice #16)** — la
+    scoreboard mostra, sotto "🏆 Tabellone" e prima della classifica, un
+    banner ambra "🧀 Montepremi Finale: <N Mozzarelle>" letto live da
+    Airtable. Sorgente: tabella "11. Counter" (`tbl1fSTJG3ZIMhSsb`, riga
+    singola), campo `Mozzarella Counter` — **formula** che restituisce una
+    stringa già formattata (`{Total Prediction Sets} * 5 & " Mozzarelle"`,
+    result type singleLineText). Read-only: `fetchMozzarellaCounter()` in
+    `lib/airtable/counter.ts`, mapper `mapMozzarellaCounter`, fetch in
+    parallelo a `fetchScoreboard` (pagina già `force-dynamic` → aggiorna
+    coi partecipanti). Rimosso il vecchio sottotitolo del Tabellone.
+
 🎉 **MVP LIVE in produzione:** `https://t0t0m0ndlale.online`.
 
 Per ogni slice consultare `HANDOFF.md` per lo stato preciso.

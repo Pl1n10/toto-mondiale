@@ -27,6 +27,7 @@ export const AIRTABLE_TABLES = {
   groupOrderPredictions:  { logicalName: '8. Group Order Predictions',  tableId: 'tblrrWqCozhBK9E0c' },
   knockoutMatches:        { logicalName: '9. Knockout Matches',         tableId: 'tbl9IUt0116lvkbki' },
   knockoutPredictions:    { logicalName: '10. Knockout Predictions',    tableId: 'tblcb4XGJ97WFa2DT' },
+  counter:                { logicalName: '11. Counter',                  tableId: 'tbl1fSTJG3ZIMhSsb' },
 } satisfies Record<string, TableConfig>;
 
 export type AirtableTableKey = keyof typeof AIRTABLE_TABLES;
@@ -73,6 +74,14 @@ export const PREDICTION_SET_WRITABLE_FIELDS: readonly string[] = [
   PREDICTION_SET_FIELDS.predictedWinner,
   PREDICTION_SET_FIELDS.predictedTopScorer,
 ];
+
+// "11. Counter" holds a single row. `Mozzarella Counter` is a formula
+// returning an already-formatted single-line string, e.g. "65 Mozzarelle"
+// (`{Total Prediction Sets} * 5 & " Mozzarelle"`). Read-only here: it's the
+// live "Montepremi Finale" shown on the scoreboard.
+export const COUNTER_FIELDS = {
+  mozzarellaCounter: 'Mozzarella Counter',
+} as const;
 
 export const GROUP_FIELDS = {
   groupName: 'Group Name',                     // e.g. "Group A".."Group L"

@@ -1,4 +1,5 @@
 import {
+  COUNTER_FIELDS,
   GROUP_MATCH_PREDICTION_FIELDS,
   GROUP_ORDER_PREDICTION_FIELDS,
   KNOCKOUT_MATCH_FIELDS,
@@ -58,6 +59,13 @@ function firstLinkedId(value: unknown): string | undefined {
     return value[0];
   }
   return undefined;
+}
+
+/** The "Mozzarella Counter" formula returns a ready-made string ("65
+ *  Mozzarelle"); pass it straight through. `firstString` also coerces a
+ *  bare number, should the formula ever be switched to a numeric output. */
+export function mapMozzarellaCounter(record: AirtableRecord): string | null {
+  return firstString(record.fields[COUNTER_FIELDS.mozzarellaCounter]) ?? null;
 }
 
 export function mapUser(record: AirtableRecord): User {
